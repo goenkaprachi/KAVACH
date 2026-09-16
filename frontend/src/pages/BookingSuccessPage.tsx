@@ -1,11 +1,10 @@
 import React from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CheckCircle2, Calendar, Clock, Video, Download, ArrowRight, User, Building, Phone } from 'lucide-react';
+import { CheckCircle2, Calendar, Clock, Download, User, Building, Phone } from 'lucide-react';
 
 export const BookingSuccessPage: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const booking = location.state?.booking;
   const eventType = location.state?.eventType;
   const answers = location.state?.answers || booking?.invitees?.[0]?.custom_answers || {};
@@ -30,6 +29,13 @@ export const BookingSuccessPage: React.FC = () => {
   const startDt = parseISO(booking.start_time);
   const endDt = parseISO(booking.end_time);
 
+  const eventTitle = `${eventType?.title || 'Meeting'} with ${booking.employee_name || 'Host'}`;
+  const eventDescriptionLines = [
+    'Scheduled via Kavach Connect.',
+    booking.meeting_join_url ? `Join link: ${booking.meeting_join_url}` : null,
+  ].filter(Boolean);
+  const eventDescription = eventDescriptionLines.join('\n');
+
   const downloadIcs = () => {
     const dtStamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     const dtStart = startDt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -46,8 +52,8 @@ export const BookingSuccessPage: React.FC = () => {
       `DTSTAMP:${dtStamp}`,
       `DTSTART:${dtStart}`,
       `DTEND:${dtEnd}`,
-      `SUMMARY:${eventType?.title || 'Meeting'} with ${booking.employee_name || 'Host'}`,
-      `DESCRIPTION:Join Link: ${booking.meeting_join_url || ''}`,
+      `SUMMARY:${eventTitle}`,
+      `DESCRIPTION:${eventDescription.replace(/\n/g, '\\n')}`,
       `LOCATION:${booking.meeting_join_url || 'Online'}`,
       'STATUS:CONFIRMED',
       'END:VEVENT',
@@ -63,9 +69,31 @@ export const BookingSuccessPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // Deep link to Google Calendar's "add event" flow, prefilled with the
+  // meeting's title, time, and description (including the join link, which
+  // is intentionally not shown elsewhere on this page). Google will prompt
+  // the visitor to pick/sign in to a Google account before adding it.
+  const toGCalDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const googleCalendarUrl = `https://calendar.google.com/calendar/render?${new URLSearchParams({
+    action: 'TEMPLATE',
+    text: eventTitle,
+    dates: `${toGCalDate(startDt)}/${toGCalDate(endDt)}`,
+    details: eventDescription,
+    location: booking.meeting_join_url || 'Online',
+  }).toString()}`;
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl border border-slate-200 p-8 text-center space-y-6">
+        <div className="flex justify-center items-center space-x-2">
+          <img
+            src="/badge.jpg"
+            alt="Kavach Connect"
+            className="h-9 w-9 rounded-full object-cover shadow-sm border border-amber-900/20"
+          />
+          <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Kavach Connect</span>
+        </div>
+
         <div className="flex justify-center">
           <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-inner">
             <CheckCircle2 className="h-10 w-10" />
@@ -129,38 +157,19 @@ export const BookingSuccessPage: React.FC = () => {
                 ))}
             </div>
           )}
-
-          {booking.meeting_join_url && (
-            <div className="flex items-center space-x-2 text-xs text-slate-700 font-medium pt-1">
-              <Video className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-              <span className="truncate">
-                Join URL:{' '}
-                <a
-                  href={booking.meeting_join_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline font-semibold"
-                >
-                  {booking.meeting_join_url}
-                </a>
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Action Buttons */}
         <div className="space-y-3 pt-2">
-          {booking.meeting_join_url && (
-            <a
-              href={booking.meeting_join_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex justify-center items-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-200 transition-colors"
-            >
-              <Video className="mr-2 h-4 w-4" />
-              <span>Join Meeting Room</span>
-            </a>
-          )}
+          <a
+            href={googleCalendarUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex justify-center items-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-200 transition-colors"
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            <span>Add to Google Calendar</span>
+          </a>
 
           <button
             onClick={downloadIcs}
@@ -171,15 +180,9 @@ export const BookingSuccessPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-center space-x-2">
-          <img src="/badge.jpg" alt="Kavach Connect" className="h-4 w-4 rounded-full object-cover" />
-          <Link
-            to="/login"
-            className="text-xs font-medium text-slate-500 hover:text-slate-800"
-          >
-            Staff member? Sign in to Kavach Connect &rarr;
-          </Link>
-        </div>
+        <p className="text-xs text-slate-400 pt-2">
+          The meeting joining link has been included in your confirmation email.
+        </p>
       </div>
     </div>
   );
