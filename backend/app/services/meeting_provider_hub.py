@@ -87,9 +87,11 @@ class WherebyMeetingProvider:
 
         end_time = start_time + timedelta(minutes=duration_minutes)
         clean_title = "".join(c for c in title if c.isalnum())[:16].lower()
-        room_name_prefix = f"/kavach-{clean_title or 'meeting'}"
+        # NOTE: no leading slash - Whereby rejects a roomNamePrefix starting
+        # with "/" (it auto-prefixes the final room name with one itself).
+        room_name_prefix = f"kavach-{clean_title or 'meeting'}-"
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=8.0)) as client:
             resp = await client.post(
                 "https://api.whereby.dev/v1/meetings",
                 headers={
@@ -100,6 +102,7 @@ class WherebyMeetingProvider:
                     "isLocked": False,
                     "roomNamePrefix": room_name_prefix,
                     "endDate": end_time.isoformat(),
+                    "fields": ["hostRoomUrl"],
                 },
             )
 
@@ -109,7 +112,7 @@ class WherebyMeetingProvider:
         data = resp.json()
         room_url = data.get("roomUrl")
         if not room_url:
-            raise RuntimeError("Whereby API response missing roomUrl")
+            raise RuntimeError(f"Whereby API response missing roomUrl: {data}")
 
         return MeetingDetails(
             provider="whereby",
@@ -201,8 +204,8 @@ class MeetingProviderHub:
                 )
             except Exception as exc:
                 logger.warning(
-                    f"Whereby provider failed for booking {booking_id}: {exc}. "
-                    f"Falling back to Jitsi Meet safety net."
+                    f"Whereby provider failed for booking {booking_id}: "
+                    f"{type(exc).__name__}: {exc!r}. Falling back to Jitsi Meet safety net."
                 )
 
         if provider and provider.is_configured():
