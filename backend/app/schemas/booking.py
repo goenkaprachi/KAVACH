@@ -45,6 +45,7 @@ class RescheduleBookingRequest(BaseModel):
 
 class BookingResponse(BaseModel):
     id: uuid.UUID
+    booking_reference: str
     event_type_id: uuid.UUID
     employee_id: uuid.UUID
     start_time: datetime
