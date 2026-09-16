@@ -89,12 +89,18 @@ async def create_booking(
 
     employee = event_type.owner
 
-    # 1b. Enforce any admin-configured required intake fields
+    # 1b. Enforce any admin-configured required intake fields. Name and Email
+    # are core fields collected via invitee_name/invitee_email, not
+    # custom_answers, so they're excluded here (mirrors the frontend's
+    # answerFields filter in PublicBookingPage.tsx).
+    core_labels = {"name", "email", "email id"}
     custom_answers = req.custom_answers or {}
     for question in event_type.custom_questions or []:
         if not isinstance(question, dict) or not question.get("required"):
             continue
         label = question.get("label") or question.get("name") or ""
+        if label.strip().lower() in core_labels:
+            continue
         if label and not str(custom_answers.get(label, "")).strip():
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
