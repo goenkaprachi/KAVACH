@@ -171,7 +171,8 @@ export const BookingSuccessPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="pt-4 border-t border-slate-100">
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-center space-x-2">
+          <img src="/badge.jpg" alt="Kavach Connect" className="h-4 w-4 rounded-full object-cover" />
           <Link
             to="/login"
             className="text-xs font-medium text-slate-500 hover:text-slate-800"

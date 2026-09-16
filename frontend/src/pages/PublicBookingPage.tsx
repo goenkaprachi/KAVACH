@@ -304,6 +304,15 @@ export const PublicBookingPage: React.FC = () => {
         {/* Left Column: Event details */}
         <div className="md:w-5/12 p-6 md:p-8 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50/50">
           <div className="space-y-4">
+            <div className="flex items-center space-x-2.5 pb-1">
+              <img
+                src="/badge.jpg"
+                alt="Kavach Connect"
+                className="h-8 w-8 rounded-full object-cover shadow-sm border border-amber-900/20"
+              />
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Kavach Connect</span>
+            </div>
+
             <div>
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 {eventType.owner_name}
@@ -627,7 +636,8 @@ export const PublicBookingPage: React.FC = () => {
             </div>
           )}
 
-          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center space-x-2">
+            <img src="/badge.jpg" alt="Kavach Connect" className="h-4 w-4 rounded-full object-cover" />
             <span className="text-[11px] text-slate-400 font-medium">
               Powered by Kavach Connect — Enterprise Scheduling
             </span>

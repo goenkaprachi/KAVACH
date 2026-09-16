@@ -35,12 +35,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange }) => {
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onTabChange('event-types')}>
-              <div className="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-sm shadow-blue-200">
-                <Calendar className="h-5 w-5" />
-              </div>
+              <img
+                src="/badge.jpg"
+                alt="Kavach Connect"
+                className="h-10 w-10 rounded-full object-cover shadow-sm border border-amber-900/20"
+              />
               <div>
                 <span className="text-lg font-bold tracking-tight text-slate-900">Kavach Connect</span>
-                <span className="block text-[10px] text-slate-500 font-medium tracking-wide uppercase">Hyperbuild Scheduling</span>
+                <span className="block text-[10px] text-slate-500 font-medium tracking-wide uppercase">Enterprise Scheduling</span>
               </div>
             </div>
 

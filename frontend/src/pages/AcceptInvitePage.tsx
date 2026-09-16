@@ -93,9 +93,11 @@ export const AcceptInvitePage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-200">
-            <Calendar className="h-7 w-7" />
-          </div>
+          <img
+            src="/badge.jpg"
+            alt="Kavach Connect"
+            className="h-24 w-24 rounded-full object-cover shadow-lg border-2 border-amber-800/30 ring-4 ring-amber-500/10"
+          />
         </div>
         <h2 className="mt-4 text-center text-2xl font-bold tracking-tight text-slate-900">
           Activate Your Account
