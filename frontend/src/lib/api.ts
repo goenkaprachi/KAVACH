@@ -1,8 +1,17 @@
 import axios from 'axios';
 import { useAuthStore } from './store';
 
+// In production (e.g. Render), the frontend and backend are deployed as
+// separate services on different domains, so relative paths like
+// "/api/v1" would resolve against the frontend's own origin. Set
+// VITE_API_URL to the backend's full URL (e.g.
+// https://kavach-backend.onrender.com/api/v1) in that case. Locally / on
+// platforms that proxy "/api" to the backend on the same domain (like the
+// previous Vercel setup), leave it unset to keep using the relative path.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -64,7 +73,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post('/api/v1/auth/refresh', {
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
           refresh_token: refreshToken,
         });
 
