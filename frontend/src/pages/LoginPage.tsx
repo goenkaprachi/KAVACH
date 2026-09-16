@@ -46,8 +46,11 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-slate-950 py-12 sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+
+      <div className="relative sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <img
             src="/badge.jpg"
@@ -55,16 +58,16 @@ export const LoginPage: React.FC = () => {
             className="h-24 w-24 rounded-full object-cover shadow-lg border-2 border-amber-800/30 ring-4 ring-amber-500/10"
           />
         </div>
-        <h2 className="mt-4 text-center text-2xl font-bold tracking-tight text-slate-900">
+        <h2 className="mt-4 text-center text-2xl font-bold tracking-tight text-white">
           Sign in to Kavach Connect
         </h2>
-        <p className="mt-1 text-center text-sm text-slate-500">
+        <p className="mt-1 text-center text-sm text-slate-400">
           Meeting Scheduling & Availability Platform
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-sm border border-slate-200 sm:rounded-xl sm:px-10">
+      <div className="relative mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white/95 py-8 px-6 shadow-2xl backdrop-blur border border-white/10 sm:rounded-2xl sm:px-10">
           {error && (
             <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start space-x-2">
               <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />

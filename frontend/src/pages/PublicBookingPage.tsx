@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../lib/api';
@@ -30,10 +30,7 @@ import {
   User, 
   Mail, 
   ArrowLeft,
-  CheckCircle2,
-  Plus,
-  Trash2,
-  Building
+  CheckCircle2
 } from 'lucide-react';
 
 export const PublicBookingPage: React.FC = () => {
@@ -54,21 +51,7 @@ export const PublicBookingPage: React.FC = () => {
   // Form State
   const [inviteeName, setInviteeName] = useState('');
   const [inviteeEmail, setInviteeEmail] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [hasCompanyField, setHasCompanyField] = useState(true);
-  const [contactNo, setContactNo] = useState('');
-  const [hasContactField, setHasContactField] = useState(true);
   const [notes, setNotes] = useState('');
-  const [hasNotesField, setHasNotesField] = useState(true);
-
-  // Additional dynamic custom fields
-  interface DynamicField {
-    id: string;
-    label: string;
-    value: string;
-    placeholder?: string;
-  }
-  const [customFields, setCustomFields] = useState<DynamicField[]>([]);
   const [bookingError, setBookingError] = useState<string | null>(null);
 
   // 1. Fetch public event type details
@@ -80,56 +63,30 @@ export const PublicBookingPage: React.FC = () => {
     },
   });
 
-  // Sync any configured custom questions from event type
-  useEffect(() => {
-    if (eventType?.custom_questions && Array.isArray(eventType.custom_questions) && eventType.custom_questions.length > 0) {
-      const initialCustom: DynamicField[] = [];
-      let comp = false;
-      let cont = false;
-
-      eventType.custom_questions.forEach((q: any) => {
-        const lbl = typeof q === 'string' ? q : q.label || q.name || '';
-        const lower = lbl.toLowerCase();
-        if (lower.includes('company')) {
-          comp = true;
-        } else if (lower.includes('contact') || lower.includes('phone')) {
-          cont = true;
-        } else if (lbl.trim() && !['name', 'email'].includes(lower)) {
-          initialCustom.push({
-            id: `q_${Math.random().toString(36).substring(2, 9)}`,
-            label: lbl.trim(),
-            value: '',
-            placeholder: `Enter ${lbl.trim()}...`,
-          });
-        }
-      });
-
-      setHasCompanyField(comp);
-      setHasContactField(cont);
-      if (initialCustom.length > 0) {
-        setCustomFields(initialCustom);
-      }
-    }
+  // Admin-configured intake fields (beyond Name/Email), driven by the event
+  // type's custom_questions. Attendees fill these in; required/optional is
+  // controlled by the admin, not the attendee.
+  const answerFields = useMemo(() => {
+    const raw = eventType?.custom_questions;
+    if (!Array.isArray(raw)) return [] as { key: string; label: string; required: boolean }[];
+    return raw
+      .map((q: any) => {
+        const label = typeof q === 'string' ? q : q.label || q.name || '';
+        return {
+          key: typeof q === 'object' && q.key ? q.key : label,
+          label: label.trim(),
+          required: typeof q === 'object' ? !!q.required : false,
+        };
+      })
+      .filter((f) => f.label && !['name', 'email id', 'email'].includes(f.label.toLowerCase()));
   }, [eventType]);
 
-  // Dynamic field management helpers
-  const handleAddCustomField = () => {
-    const newField: DynamicField = {
-      id: `field_${Date.now()}`,
-      label: 'New Field',
-      value: '',
-      placeholder: 'Enter detail...',
-    };
-    setCustomFields(prev => [...prev, newField]);
-  };
+  const [answerValues, setAnswerValues] = useState<Record<string, string>>({});
 
-  const handleUpdateCustomField = (id: string, key: 'label' | 'value', val: string) => {
-    setCustomFields(prev => prev.map(f => f.id === id ? { ...f, [key]: val } : f));
-  };
-
-  const handleDeleteCustomField = (id: string) => {
-    setCustomFields(prev => prev.filter(f => f.id !== id));
-  };
+  // Reset answers whenever the set of configured fields changes (new event type loaded)
+  useEffect(() => {
+    setAnswerValues({});
+  }, [answerFields.length, eventType?.id]);
 
   // 2. Fetch live computed slots for selected date
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -172,16 +129,19 @@ export const PublicBookingPage: React.FC = () => {
     if (!selectedSlot || !eventType) return;
     setBookingError(null);
 
+    const missingRequired = answerFields.find(
+      (f) => f.required && !(answerValues[f.key] || '').trim()
+    );
+    if (missingRequired) {
+      setBookingError(`"${missingRequired.label}" is required to schedule this meeting.`);
+      return;
+    }
+
     const custom_answers: Record<string, any> = {};
-    if (hasCompanyField && companyName.trim()) {
-      custom_answers['Company name'] = companyName.trim();
-    }
-    if (hasContactField && contactNo.trim()) {
-      custom_answers['Contact No.'] = contactNo.trim();
-    }
-    customFields.forEach(cf => {
-      if (cf.label.trim() && cf.value.trim()) {
-        custom_answers[cf.label.trim()] = cf.value.trim();
+    answerFields.forEach((f) => {
+      const val = (answerValues[f.key] || '').trim();
+      if (val) {
+        custom_answers[f.label] = val;
       }
     });
 
@@ -192,7 +152,7 @@ export const PublicBookingPage: React.FC = () => {
       invitee_email: inviteeEmail,
       invitee_timezone: selectedTz,
       custom_answers,
-      notes: (hasNotesField && notes.trim()) ? notes.trim() : undefined,
+      notes: notes.trim() || undefined,
     });
   };
 
@@ -472,34 +432,7 @@ export const PublicBookingPage: React.FC = () => {
                   />
                 </div>
 
-                {/* 2. Company Name */}
-                {hasCompanyField && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                        Company Name
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setHasCompanyField(false)}
-                        className="text-[11px] text-slate-400 hover:text-red-600 flex items-center space-x-1 transition-colors"
-                        title="Delete Company field"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>Delete field</span>
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="e.g. Acme Corporation"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                {/* 3. Email ID */}
+                {/* 2. Email ID */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Email ID <span className="text-red-500">*</span>
@@ -514,116 +447,43 @@ export const PublicBookingPage: React.FC = () => {
                   />
                 </div>
 
-                {/* 4. Contact No. */}
-                {hasContactField && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                        Contact No.
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setHasContactField(false)}
-                        className="text-[11px] text-slate-400 hover:text-red-600 flex items-center space-x-1 transition-colors"
-                        title="Delete Contact No. field"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>Delete field</span>
-                      </button>
-                    </div>
-                    <input
-                      type="tel"
-                      placeholder="+91 98765 43210"
-                      value={contactNo}
-                      onChange={(e) => setContactNo(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                {/* 5. Dynamically Added Custom Fields */}
-                {customFields.map((field) => (
-                  <div
-                    key={field.id}
-                    className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5 flex-1 mr-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Field:
-                        </span>
-                        <input
-                          type="text"
-                          required
-                          value={field.label}
-                          onChange={(e) => handleUpdateCustomField(field.id, 'label', e.target.value)}
-                          placeholder="Field name (e.g. Designation)"
-                          className="px-2 py-0.5 border border-slate-300 rounded text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCustomField(field.id)}
-                        className="text-[11px] text-red-500 hover:text-red-700 flex items-center space-x-1 font-medium transition-colors"
-                        title="Delete this field"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>Delete field</span>
-                      </button>
-                    </div>
+                {/* 3. Admin-configured intake fields */}
+                {answerFields.map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      {field.label}
+                      {field.required ? (
+                        <span className="text-red-500"> *</span>
+                      ) : (
+                        <span className="text-slate-400 normal-case font-medium"> (Optional)</span>
+                      )}
+                    </label>
                     <input
                       type="text"
-                      placeholder={field.placeholder || `Enter ${field.label || 'value'}...`}
-                      value={field.value}
-                      onChange={(e) => handleUpdateCustomField(field.id, 'value', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 bg-white"
+                      required={field.required}
+                      placeholder={`Enter ${field.label.toLowerCase()}...`}
+                      value={answerValues[field.key] || ''}
+                      onChange={(e) =>
+                        setAnswerValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 ))}
 
-                {/* Add Field Action Button */}
-                <div className="pt-0.5 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={handleAddCustomField}
-                    className="inline-flex items-center space-x-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 py-1.5 px-3 rounded-lg border border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/50 hover:bg-blue-50 transition-colors"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Add field</span>
-                  </button>
-                  {(!hasCompanyField || !hasContactField) && (
-                    <span className="text-[11px] text-slate-400">
-                      Standard fields can be re-added anytime
-                    </span>
-                  )}
+                {/* 4. Notes / Agenda */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Additional Notes / Agenda <span className="text-slate-400 normal-case font-medium">(Optional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Briefly state anything you'd like to discuss..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-
-                {/* 6. Notes / Agenda */}
-                {hasNotesField && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                        Additional Notes / Agenda (Optional)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setHasNotesField(false)}
-                        className="text-[11px] text-slate-400 hover:text-red-600 flex items-center space-x-1 transition-colors"
-                        title="Delete Notes field"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>Delete field</span>
-                      </button>
-                    </div>
-                    <textarea
-                      rows={3}
-                      placeholder="Briefly state anything you'd like to discuss..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
 
                 <button
                   type="submit"
