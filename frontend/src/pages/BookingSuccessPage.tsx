@@ -85,13 +85,12 @@ export const BookingSuccessPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl border border-slate-200 p-8 text-center space-y-6">
-        <div className="flex justify-center items-center space-x-2">
+        <div className="flex justify-center">
           <img
             src="/badge.jpg"
             alt="Kavach Connect"
-            className="h-9 w-9 rounded-full object-cover shadow-sm border border-amber-900/20"
+            className="h-20 w-20 rounded-full object-cover shadow-md border border-amber-900/20"
           />
-          <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Kavach Connect</span>
         </div>
 
         <div className="flex justify-center">
