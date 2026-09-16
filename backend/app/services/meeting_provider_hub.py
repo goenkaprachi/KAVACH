@@ -67,6 +67,7 @@ class WherebyMeetingProvider:
     @staticmethod
     async def get_api_key(db: Any) -> Optional[str]:
         from sqlalchemy import select
+        from cryptography.fernet import InvalidToken
         from app.models.integration import MeetingProviderConfig
         from app.core.security import decrypt_data
 
@@ -78,7 +79,14 @@ class WherebyMeetingProvider:
         cfg = res.scalar_one_or_none()
         if not cfg or not cfg.credentials_encrypted or not cfg.credentials_encrypted.get("api_key"):
             return None
-        return decrypt_data(cfg.credentials_encrypted["api_key"])
+        try:
+            return decrypt_data(cfg.credentials_encrypted["api_key"])
+        except InvalidToken as exc:
+            raise RuntimeError(
+                "Stored Whereby API key could not be decrypted - the encryption key "
+                "(ENCRYPTION_KEY) has likely changed since it was last saved. Ask an "
+                "admin to re-enter the Whereby API key in Admin > Integrations."
+            ) from exc
 
     async def create_meeting(
         self, booking_id: str, title: str, start_time: Any, duration_minutes: int, api_key: str
