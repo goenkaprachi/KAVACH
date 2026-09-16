@@ -49,6 +49,7 @@ def build_booking_response(
 
     return BookingResponse(
         id=b.id,
+        booking_reference=b.booking_reference,
         event_type_id=b.event_type_id,
         employee_id=b.employee_id,
         start_time=b.start_time,

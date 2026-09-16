@@ -3,13 +3,16 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy import String, Text, DateTime, ForeignKey, Index, Uuid, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.models.base import Base, generate_uuid, utc_now
+from app.models.base import Base, generate_uuid, generate_booking_reference, utc_now
 
 
 class Booking(Base):
     __tablename__ = "bookings"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=generate_uuid)
+    booking_reference: Mapped[str] = mapped_column(
+        String(20), default=generate_booking_reference, unique=True, nullable=False, index=True
+    )
     event_type_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("event_types.id"), nullable=False, index=True)
     employee_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
