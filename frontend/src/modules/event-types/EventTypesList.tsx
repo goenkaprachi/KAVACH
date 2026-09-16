@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../lib/store';
+import { BookingField, DEFAULT_BOOKING_FIELDS, parseCustomQuestions, toCustomQuestions } from '../../lib/bookingFields';
+import { BookingFieldsEditor } from './BookingFieldsEditor';
 import { 
   Plus, 
   Clock, 
@@ -51,13 +53,9 @@ export const EventTypesList: React.FC = () => {
   const [bufferBefore, setBufferBefore] = useState(0);
   const [bufferAfter, setBufferAfter] = useState(0);
   const [minNotice, setMinNotice] = useState(60);
-  const [bookingFields, setBookingFields] = useState<string[]>([
-    'Name',
-    'Company name',
-    'Email id',
-    'Contact No.'
-  ]);
-  const [newFieldInput, setNewFieldInput] = useState('');
+  const [bookingFields, setBookingFields] = useState<BookingField[]>(
+    DEFAULT_BOOKING_FIELDS.map((f) => ({ ...f }))
+  );
 
   const { data: eventTypes = [], isLoading } = useQuery({
     queryKey: ['event-types'],
@@ -121,35 +119,9 @@ export const EventTypesList: React.FC = () => {
   });
 
   // Edit Modal Booking Fields State
-  const [editBookingFields, setEditBookingFields] = useState<string[]>([
-    'Name',
-    'Company name',
-    'Email id',
-    'Contact No.'
-  ]);
-  const [editNewFieldInput, setEditNewFieldInput] = useState('');
-
-  const handleAddBookingField = () => {
-    if (newFieldInput.trim() && !bookingFields.includes(newFieldInput.trim())) {
-      setBookingFields(prev => [...prev, newFieldInput.trim()]);
-      setNewFieldInput('');
-    }
-  };
-
-  const handleDeleteBookingField = (fieldToDelete: string) => {
-    setBookingFields(prev => prev.filter(f => f !== fieldToDelete));
-  };
-
-  const handleEditAddBookingField = () => {
-    if (editNewFieldInput.trim() && !editBookingFields.includes(editNewFieldInput.trim())) {
-      setEditBookingFields(prev => [...prev, editNewFieldInput.trim()]);
-      setEditNewFieldInput('');
-    }
-  };
-
-  const handleEditDeleteBookingField = (fieldToDelete: string) => {
-    setEditBookingFields(prev => prev.filter(f => f !== fieldToDelete));
-  };
+  const [editBookingFields, setEditBookingFields] = useState<BookingField[]>(
+    DEFAULT_BOOKING_FIELDS.map((f) => ({ ...f }))
+  );
 
   const resetForm = () => {
     setTitle('');
@@ -161,8 +133,7 @@ export const EventTypesList: React.FC = () => {
     setBufferBefore(0);
     setBufferAfter(0);
     setMinNotice(60);
-    setBookingFields(['Name', 'Company name', 'Email id', 'Contact No.']);
-    setNewFieldInput('');
+    setBookingFields(DEFAULT_BOOKING_FIELDS.map((f) => ({ ...f })));
   };
 
   const handleTitleChange = (val: string) => {
@@ -192,7 +163,7 @@ export const EventTypesList: React.FC = () => {
       buffer_before_minutes: Number(bufferBefore),
       buffer_after_minutes: Number(bufferAfter),
       min_notice_minutes: Number(minNotice),
-      custom_questions: bookingFields.map(f => ({ name: f, label: f })),
+      custom_questions: toCustomQuestions(bookingFields),
       is_active: true,
     });
   };
@@ -208,12 +179,7 @@ export const EventTypesList: React.FC = () => {
     setEditBufferBefore(et.buffer_before_minutes ?? 0);
     setEditBufferAfter(et.buffer_after_minutes ?? 0);
     setEditMinNotice(et.min_notice_minutes ?? 60);
-    if (et.custom_questions && Array.isArray(et.custom_questions) && et.custom_questions.length > 0) {
-      setEditBookingFields(et.custom_questions.map((q: any) => typeof q === 'string' ? q : q.name || q.label || ''));
-    } else {
-      setEditBookingFields(['Name', 'Company name', 'Email id', 'Contact No.']);
-    }
-    setEditNewFieldInput('');
+    setEditBookingFields(parseCustomQuestions(et.custom_questions));
   };
 
   const handleEditTitleChange = (val: string) => {
@@ -238,7 +204,7 @@ export const EventTypesList: React.FC = () => {
         buffer_before_minutes: Number(editBufferBefore),
         buffer_after_minutes: Number(editBufferAfter),
         min_notice_minutes: Number(editMinNotice),
-        custom_questions: editBookingFields.map(f => ({ name: f, label: f })),
+        custom_questions: toCustomQuestions(editBookingFields),
       },
     });
   };
@@ -613,63 +579,7 @@ export const EventTypesList: React.FC = () => {
                 />
               </div>
 
-              {/* Booking Intake Fields */}
-              <div className="pt-2 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1">
-                  Booking Intake Fields
-                </span>
-                <p className="text-[11px] text-slate-500 mb-2">
-                  Details requested from attendees when scheduling a slot
-                </p>
-                <div className="flex flex-wrap gap-1.5 mb-2.5">
-                  {bookingFields.map((field) => {
-                    const isCore = ['Name', 'Email id'].includes(field);
-                    return (
-                      <span
-                        key={field}
-                        className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
-                      >
-                        <span>{field}</span>
-                        {isCore ? (
-                          <span className="text-[10px] text-slate-400 font-semibold">(Required)</span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBookingField(field)}
-                            className="text-slate-400 hover:text-red-600 transition-colors"
-                            title={`Delete ${field} field`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Add custom field (e.g. Website, Role...)"
-                    value={newFieldInput}
-                    onChange={(e) => setNewFieldInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddBookingField();
-                      }
-                    }}
-                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs flex-1 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddBookingField}
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>Add Field</span>
-                  </button>
-                </div>
-              </div>
+              <BookingFieldsEditor fields={bookingFields} onChange={setBookingFields} />
 
               {/* Advanced Buffers */}
               <div className="pt-2 border-t border-slate-100">
@@ -880,63 +790,7 @@ export const EventTypesList: React.FC = () => {
                 />
               </div>
 
-              {/* Booking Intake Fields */}
-              <div className="pt-2 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1">
-                  Booking Intake Fields
-                </span>
-                <p className="text-[11px] text-slate-500 mb-2">
-                  Details requested from attendees when scheduling a slot
-                </p>
-                <div className="flex flex-wrap gap-1.5 mb-2.5">
-                  {editBookingFields.map((field) => {
-                    const isCore = ['Name', 'Email id'].includes(field);
-                    return (
-                      <span
-                        key={field}
-                        className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
-                      >
-                        <span>{field}</span>
-                        {isCore ? (
-                          <span className="text-[10px] text-slate-400 font-semibold">(Required)</span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleEditDeleteBookingField(field)}
-                            className="text-slate-400 hover:text-red-600 transition-colors"
-                            title={`Delete ${field} field`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Add custom field (e.g. Website, Role...)"
-                    value={editNewFieldInput}
-                    onChange={(e) => setEditNewFieldInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleEditAddBookingField();
-                      }
-                    }}
-                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs flex-1 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleEditAddBookingField}
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>Add Field</span>
-                  </button>
-                </div>
-              </div>
+              <BookingFieldsEditor fields={editBookingFields} onChange={setEditBookingFields} />
 
               {/* Advanced Buffers */}
               <div className="pt-2 border-t border-slate-100">

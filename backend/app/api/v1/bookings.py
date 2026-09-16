@@ -88,6 +88,19 @@ async def create_booking(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event type or host is unavailable")
 
     employee = event_type.owner
+
+    # 1b. Enforce any admin-configured required intake fields
+    custom_answers = req.custom_answers or {}
+    for question in event_type.custom_questions or []:
+        if not isinstance(question, dict) or not question.get("required"):
+            continue
+        label = question.get("label") or question.get("name") or ""
+        if label and not str(custom_answers.get(label, "")).strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f'"{label}" is required to schedule this meeting.',
+            )
+
     slot_start_utc = req.start_time.astimezone(timezone.utc)
     slot_end_utc = slot_start_utc + timedelta(minutes=event_type.duration_minutes)
 
