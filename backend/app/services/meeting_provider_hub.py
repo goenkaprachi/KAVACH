@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import timedelta
 from typing import Optional, Protocol, Dict, Any
 from dataclasses import dataclass
 from app.core.config import settings
@@ -54,6 +55,84 @@ class JitsiMeetProvider:
         logger.info(f"Cancelled Jitsi meeting room {external_ref}")
 
 
+class WherebyMeetingProvider:
+    """
+    Creates a real Whereby room via the Whereby REST API using the org-wide
+    API key configured by an admin in Admin > Integrations. Unlike Jitsi,
+    this provider needs a DB lookup for credentials, so it's invoked
+    directly by the hub rather than living in the static providers map.
+    """
+    name = "whereby"
+
+    @staticmethod
+    async def get_api_key(db: Any) -> Optional[str]:
+        from sqlalchemy import select
+        from app.models.integration import MeetingProviderConfig
+        from app.core.security import decrypt_data
+
+        stmt = select(MeetingProviderConfig).where(
+            MeetingProviderConfig.provider == "whereby",
+            MeetingProviderConfig.is_enabled == True,
+        )
+        res = await db.execute(stmt)
+        cfg = res.scalar_one_or_none()
+        if not cfg or not cfg.credentials_encrypted or not cfg.credentials_encrypted.get("api_key"):
+            return None
+        return decrypt_data(cfg.credentials_encrypted["api_key"])
+
+    async def create_meeting(
+        self, booking_id: str, title: str, start_time: Any, duration_minutes: int, api_key: str
+    ) -> MeetingDetails:
+        import httpx
+
+        end_time = start_time + timedelta(minutes=duration_minutes)
+        clean_title = "".join(c for c in title if c.isalnum())[:16].lower()
+        room_name_prefix = f"/kavach-{clean_title or 'meeting'}"
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                "https://api.whereby.dev/v1/meetings",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "isLocked": False,
+                    "roomNamePrefix": room_name_prefix,
+                    "endDate": end_time.isoformat(),
+                },
+            )
+
+        if resp.status_code not in (200, 201):
+            raise RuntimeError(f"Whereby API error {resp.status_code}: {resp.text}")
+
+        data = resp.json()
+        room_url = data.get("roomUrl")
+        if not room_url:
+            raise RuntimeError("Whereby API response missing roomUrl")
+
+        return MeetingDetails(
+            provider="whereby",
+            join_url=room_url,
+            host_url=data.get("hostRoomUrl") or room_url,
+            external_ref=data.get("meetingId"),
+        )
+
+    async def cancel_meeting(self, external_ref: str, api_key: Optional[str] = None) -> None:
+        if not external_ref or not api_key:
+            return
+        import httpx
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.delete(
+                    f"https://api.whereby.dev/v1/meetings/{external_ref}",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+        except Exception as exc:
+            logger.warning(f"Failed to cancel Whereby meeting {external_ref}: {exc}")
+
+
 class CustomLocationProvider:
     name = "custom"
 
@@ -85,6 +164,7 @@ class MeetingProviderHub:
             "in_person": CustomLocationProvider(),
             "custom": CustomLocationProvider(),
         }
+        self.whereby_provider = WherebyMeetingProvider()
 
     def register_provider(self, name: str, provider: MeetingProvider):
         self.providers[name] = provider
@@ -96,7 +176,8 @@ class MeetingProviderHub:
         start_time: Any,
         duration_minutes: int,
         requested_provider: str,
-        location_detail: Optional[str] = None
+        location_detail: Optional[str] = None,
+        db: Optional[Any] = None,
     ) -> MeetingDetails:
         provider = self.providers.get(requested_provider)
 
@@ -106,6 +187,23 @@ class MeetingProviderHub:
                 join_url=location_detail or f"Meeting via {requested_provider.replace('_', ' ').title()}",
                 external_ref=None
             )
+
+        if requested_provider == "whereby" and db is not None:
+            try:
+                api_key = await self.whereby_provider.get_api_key(db)
+                if api_key:
+                    return await self.whereby_provider.create_meeting(
+                        booking_id, title, start_time, duration_minutes, api_key
+                    )
+                logger.info(
+                    f"Whereby requested for booking {booking_id} but not configured/enabled by an admin. "
+                    f"Falling back to Jitsi Meet safety net."
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Whereby provider failed for booking {booking_id}: {exc}. "
+                    f"Falling back to Jitsi Meet safety net."
+                )
 
         if provider and provider.is_configured():
             try:

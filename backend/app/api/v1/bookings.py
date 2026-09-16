@@ -145,6 +145,7 @@ async def create_booking(
         duration_minutes=event_type.duration_minutes,
         requested_provider=event_type.location_type,
         location_detail=event_type.location_detail,
+        db=db,
     )
 
     # 4. Insert Booking & Invitee in atomic transaction
@@ -346,6 +347,7 @@ async def reschedule_booking(
         duration_minutes=event_type.duration_minutes,
         requested_provider=event_type.location_type,
         location_detail=event_type.location_detail,
+        db=db,
     )
 
     new_booking = Booking(
