@@ -46,7 +46,7 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-slate-950 py-12 sm:px-6 lg:px-8">
+    <div className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-amber-50/30 py-12 sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
@@ -58,16 +58,16 @@ export const LoginPage: React.FC = () => {
             className="h-24 w-24 rounded-full object-cover shadow-lg border-2 border-amber-800/30 ring-4 ring-amber-500/10"
           />
         </div>
-        <h2 className="mt-4 text-center text-2xl font-bold tracking-tight text-white">
+        <h2 className="mt-4 text-center text-2xl font-extrabold tracking-tight text-slate-900">
           Sign in to Kavach Connect
         </h2>
-        <p className="mt-1 text-center text-sm text-slate-400">
+        <p className="mt-1 text-center text-sm text-slate-500">
           Meeting Scheduling & Availability Platform
         </p>
       </div>
 
       <div className="relative mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white/95 py-8 px-6 shadow-2xl backdrop-blur border border-white/10 sm:rounded-2xl sm:px-10">
+        <div className="bg-white py-8 px-6 shadow-xl border border-slate-200/80 sm:rounded-2xl sm:px-10">
           {error && (
             <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start space-x-2">
               <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
@@ -90,7 +90,7 @@ export const LoginPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@kavach.infra"
-                  className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
               </div>
             </div>
@@ -109,7 +109,7 @@ export const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
               </div>
             </div>
@@ -117,7 +117,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+              className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 transition-colors shadow-amber-500/20 shadow-md"
             >
               {loading ? (
                 <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -134,7 +134,7 @@ export const LoginPage: React.FC = () => {
             <p className="text-xs text-slate-500">
               Initial Admin Credentials:
             </p>
-            <div className="mt-1 inline-block bg-slate-100 px-3 py-1.5 rounded text-xs font-mono text-slate-700">
+            <div className="mt-1 inline-block bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-700">
               admin@kavach.infra / Admin123!
             </div>
           </div>

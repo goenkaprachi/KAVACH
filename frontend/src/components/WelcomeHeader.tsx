@@ -45,32 +45,32 @@ export const WelcomeHeader: React.FC = () => {
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-6 py-6 shadow-xl sm:px-8 sm:py-7">
-      <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-amber-400/10 blur-3xl" />
+    <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 px-6 py-6 shadow-sm sm:px-8 sm:py-7">
+      <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
 
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xl font-bold text-white sm:text-2xl">
-            {getGreeting(now.getHours())}, <span className="text-amber-400">{firstName}</span>
+          <p className="text-xl font-extrabold text-slate-900 sm:text-2xl tracking-tight">
+            {getGreeting(now.getHours())}, <span className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 bg-clip-text text-transparent">{firstName}</span>
           </p>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Here&apos;s what&apos;s happening with your schedule today.
           </p>
         </div>
 
-        <div className="flex flex-col items-start gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 lg:items-end">
-          <span className="text-2xl font-bold tabular-nums tracking-tight text-white">
+        <div className="flex flex-col items-start gap-1 rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 shadow-xs lg:items-end">
+          <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">
             {format(now, 'hh:mm:ss a')}
           </span>
-          <span className="text-xs font-medium text-slate-400">{format(now, 'EEEE, MMMM d, yyyy')}</span>
+          <span className="text-xs font-semibold text-slate-500">{format(now, 'EEEE, MMMM d, yyyy')}</span>
         </div>
       </div>
 
-      <div className="relative mt-5 flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3">
-        <Quote className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
-        <p className="text-sm italic leading-relaxed text-slate-200">
-          “{quote.text}” <span className="not-italic text-slate-400">— {quote.author}</span>
+      <div className="relative mt-5 flex items-start gap-3 rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-50/90 to-amber-100/40 px-4 py-3 shadow-xs">
+        <Quote className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+        <p className="text-sm italic leading-relaxed text-slate-700">
+          “{quote.text}” <span className="not-italic font-medium text-slate-500">— {quote.author}</span>
         </p>
       </div>
     </div>

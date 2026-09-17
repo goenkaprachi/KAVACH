@@ -14,7 +14,7 @@ export const DashboardPage: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('event-types');
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#f8fafc]">
       <Sidebar currentTab={currentTab} onTabChange={setCurrentTab} />
 
       <main className="min-h-screen md:pl-72">
