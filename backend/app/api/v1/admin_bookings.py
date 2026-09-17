@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -36,7 +36,12 @@ async def list_org_bookings(
     if employee_id:
         stmt = stmt.where(Booking.employee_id == employee_id)
     if status:
-        stmt = stmt.where(Booking.status == status)
+        if status == "rescheduled":
+            stmt = stmt.where(or_(Booking.is_rescheduled == True, Booking.rescheduled_from_id.isnot(None)))
+        elif status == "confirmed":
+            stmt = stmt.where(Booking.status == "confirmed", Booking.is_rescheduled == False, Booking.rescheduled_from_id.is_(None))
+        else:
+            stmt = stmt.where(Booking.status == status)
     if start_date:
         stmt = stmt.where(Booking.start_time >= start_date)
     if end_date:
@@ -51,6 +56,7 @@ async def list_org_bookings(
     results = []
     for b in bookings:
         item = BookingResponse.model_validate(b)
+        item.is_rescheduled = bool(getattr(b, "is_rescheduled", False) or b.rescheduled_from_id is not None)
         if b.event_type:
             item.event_type_title = b.event_type.title
             item.event_type_slug = b.event_type.slug

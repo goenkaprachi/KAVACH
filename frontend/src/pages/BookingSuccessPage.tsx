@@ -107,7 +107,7 @@ export const BookingSuccessPage: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2 text-xs text-slate-700 font-medium">
-            <Calendar className="h-4 w-4 text-blue-600 flex-shrink-0" />
+            <Calendar className="h-4 w-4 text-cyan-600 flex-shrink-0" />
             <span>{format(startDt, 'EEEE, MMMM dd, yyyy')}</span>
           </div>
 
@@ -156,7 +156,7 @@ export const BookingSuccessPage: React.FC = () => {
             href={googleCalendarUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex justify-center items-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-200 transition-colors"
+            className="w-full flex justify-center items-center py-3 px-4 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-sm font-bold shadow-md shadow-cyan-500/20 transition-all"
           >
             <Calendar className="mr-2 h-4 w-4" />
             <span>Add to Google Calendar</span>
@@ -164,7 +164,7 @@ export const BookingSuccessPage: React.FC = () => {
 
           <button
             onClick={downloadIcs}
-            className="w-full flex justify-center items-center py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-sm transition-colors"
+            className="w-full flex justify-center items-center py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-colors"
           >
             <Download className="mr-2 h-4 w-4 text-slate-500" />
             <span>Add to Calendar (.ics)</span>

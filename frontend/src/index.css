@@ -3,23 +3,107 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: light;
+    --bg-main: #f8fafc;
+    --text-main: #0f172a;
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    @apply font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-800 transition-colors duration-200;
   }
 }
 
-/* Slim, unobtrusive scrollbars for a more premium feel */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Glass Panel Component (Exact from Orion) */
+.glass-panel {
+  @apply bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-md shadow-slate-200/50;
 }
+
+/* Glass Card Component (Exact from Orion) */
+.glass-card {
+  @apply bg-white border border-slate-200/90 hover:border-slate-300 transition-all duration-200 shadow-sm shadow-slate-100;
+}
+
+/* Gradient Text (Exact from Orion) */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-700 via-sky-700 to-indigo-700 font-bold;
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Sleek modern 6px scrollbars (Exact from Orion) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.35);
+  background: rgba(148, 163, 184, 0.35);
   border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 116, 139, 0.55);
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* Smooth page transition animation (Exact from Orion) */
+@keyframes pageEnterFade {
+  0% {
+    opacity: 0.94;
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageEnterFade 140ms ease-out;
+}
+
+/* Mobile & Responsive Modal System (Exact from Orion) */
+.modal-overlay {
+  @apply fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-sm transition-all duration-200;
+  overscroll-behavior: contain;
+}
+
+.modal-sheet {
+  @apply w-full h-[92dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-[2rem] sm:rounded-3xl flex flex-col overflow-hidden bg-white border border-slate-200 shadow-2xl transition-all duration-200;
+  overscroll-behavior: contain;
+}
+
+.modal-header {
+  @apply sticky top-0 z-20 px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-200/80 bg-white/95 backdrop-blur-md flex items-center justify-between shrink-0;
+}
+
+.modal-body {
+  @apply flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-footer {
+  @apply sticky bottom-0 z-20 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-slate-200/80 bg-white/95 backdrop-blur-md flex items-center justify-end space-x-3 shrink-0;
+  padding-bottom: max(0.875rem, env(safe-area-inset-bottom));
+}
+
+.touch-scroll {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }

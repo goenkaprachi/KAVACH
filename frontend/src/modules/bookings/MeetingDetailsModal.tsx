@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isPast } from 'date-fns';
+import { StatusBadge } from '../../components/StatusBadge';
 import {
   X,
   Calendar,
@@ -100,7 +101,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
       case 'booking.created':
         return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
       case 'booking.rescheduled':
-        return <CalendarClock className="h-4 w-4 text-blue-600" />;
+        return <CalendarClock className="h-4 w-4 text-cyan-600" />;
       case 'booking.cancelled':
         return <AlertCircle className="h-4 w-4 text-red-600" />;
       default:
@@ -118,28 +119,39 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
     : [];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full my-8 max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-sheet max-w-2xl sm:max-h-[88vh] animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/70">
+        <div className="modal-header">
           <div>
             <div className="flex items-center space-x-2.5">
               <h2 className="text-lg font-bold text-slate-900">
                 {booking.event_type_title || 'Meeting Details'}
               </h2>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${
-                  booking.status === 'confirmed'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : booking.cancellation_reason?.startsWith('Rescheduled')
-                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                    : 'bg-red-100 text-red-800'
-                }`}
-              >
-                {booking.status === 'cancelled' && booking.cancellation_reason?.startsWith('Rescheduled')
-                  ? 'Rescheduled'
-                  : booking.status}
-              </span>
+              <StatusBadge
+                status={
+                  booking.status === 'cancelled'
+                    ? 'cancelled'
+                    : (booking.is_rescheduled || booking.rescheduled_from_id)
+                    ? 'rescheduled'
+                    : isPast(parseISO(booking.end_time))
+                    ? 'completed'
+                    : booking.status
+                }
+                label={
+                  booking.status === 'cancelled'
+                    ? 'Cancelled'
+                    : (booking.is_rescheduled || booking.rescheduled_from_id)
+                    ? 'Rescheduled'
+                    : isPast(parseISO(booking.end_time)) && booking.status === 'confirmed'
+                    ? 'Completed'
+                    : undefined
+                }
+                dot
+              />
             </div>
 
             <div className="flex items-center space-x-2 mt-2">
@@ -152,7 +164,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
                 onClick={() =>
                   copyToClipboard(booking.booking_reference || booking.id, 'ref')
                 }
-                className="text-xs text-slate-500 hover:text-blue-600 inline-flex items-center space-x-1 font-medium transition-colors"
+                className="text-xs text-slate-500 hover:text-cyan-600 inline-flex items-center space-x-1 font-medium transition-colors"
                 title="Copy Meeting Reference"
               >
                 {copiedRef ? (
@@ -179,15 +191,15 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
         </div>
 
         {/* Content body */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="modal-body custom-scrollbar space-y-6">
           {/* Quick Action Bar */}
-          <div className="flex flex-wrap items-center gap-2.5 p-3 bg-blue-50/40 border border-blue-100 rounded-xl">
+          <div className="flex flex-wrap items-center gap-2.5 p-3 bg-cyan-50/40 border border-cyan-100/80 rounded-xl">
             {booking.status === 'confirmed' && booking.meeting_join_url && (
               <a
                 href={booking.meeting_join_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                className="inline-flex items-center space-x-1.5 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-md shadow-cyan-500/20 transition-all"
               >
                 <Video className="h-4 w-4" />
                 <span>Join Meeting Room</span>
@@ -202,9 +214,9 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
                   onClose();
                   onOpenReschedule(booking);
                 }}
-                className="inline-flex items-center space-x-1.5 bg-white border border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                className="inline-flex items-center space-x-1.5 bg-white border border-slate-300 text-slate-700 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-300 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors"
               >
-                <CalendarClock className="h-4 w-4 text-blue-600" />
+                <CalendarClock className="h-4 w-4 text-cyan-600" />
                 <span>Reschedule Meeting</span>
               </button>
             )}
@@ -276,7 +288,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
             {/* Schedule Details Card */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
-                <Calendar className="h-3.5 w-3.5 text-blue-600" />
+                <Calendar className="h-3.5 w-3.5 text-cyan-600" />
                 <span>Schedule & Location</span>
               </h3>
 
@@ -311,7 +323,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
                 <div>
                   <span className="text-slate-500 block text-[11px]">Platform</span>
                   <span className="inline-flex items-center space-x-1 font-semibold text-slate-800 capitalize">
-                    <Video className="h-3.5 w-3.5 text-blue-500" />
+                    <Video className="h-3.5 w-3.5 text-cyan-600" />
                     <span>{booking.meeting_provider?.replace('_', ' ') || 'Online'}</span>
                   </span>
                 </div>
@@ -347,7 +359,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
             {/* Attendee Details Card */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
-                <User className="h-3.5 w-3.5 text-purple-600" />
+                <User className="h-3.5 w-3.5 text-cyan-600" />
                 <span>Attendee Information</span>
               </h3>
 
@@ -364,7 +376,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
                     <span className="text-slate-500 block text-[11px]">Email Address</span>
                     <a
                       href={`mailto:${invitee.email}`}
-                      className="font-medium text-blue-600 hover:underline flex items-center space-x-1"
+                      className="font-medium text-cyan-700 hover:text-cyan-800 hover:underline flex items-center space-x-1"
                     >
                       <Mail className="h-3 w-3" />
                       <span>{invitee.email}</span>
@@ -429,7 +441,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
-                <History className="h-4 w-4 text-blue-600" />
+                <History className="h-4 w-4 text-cyan-600" />
                 <span>Meeting Change Logs & Audit History</span>
               </h3>
               <span className="text-[11px] text-slate-400">
@@ -522,11 +534,11 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+        <div className="modal-footer">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-semibold rounded-lg text-xs hover:bg-slate-100 transition-colors"
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
           >
             Close
           </button>

@@ -58,6 +58,7 @@ class BookingResponse(BaseModel):
     cancellation_reason: Optional[str] = None
     cancelled_by: Optional[str] = None
     rescheduled_from_id: Optional[uuid.UUID] = None
+    is_rescheduled: bool = False
     created_at: datetime
     updated_at: datetime
     invitees: List[InviteeResponse] = []

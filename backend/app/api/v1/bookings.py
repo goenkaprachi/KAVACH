@@ -64,6 +64,7 @@ def build_booking_response(
         cancellation_reason=b.cancellation_reason,
         cancelled_by=b.cancelled_by,
         rescheduled_from_id=b.rescheduled_from_id,
+        is_rescheduled=getattr(b, "is_rescheduled", False) or (b.rescheduled_from_id is not None),
         created_at=b.created_at,
         updated_at=b.updated_at,
         event_type_title=event_type_title,
@@ -241,7 +242,12 @@ async def list_my_bookings(
     )
 
     if status:
-        stmt = stmt.where(Booking.status == status)
+        if status == "rescheduled":
+            stmt = stmt.where(or_(Booking.is_rescheduled == True, Booking.rescheduled_from_id.isnot(None)))
+        elif status == "confirmed":
+            stmt = stmt.where(Booking.status == "confirmed", Booking.is_rescheduled == False, Booking.rescheduled_from_id.is_(None))
+        else:
+            stmt = stmt.where(Booking.status == status)
 
     now_utc = datetime.now(timezone.utc)
     if upcoming is True:
@@ -337,6 +343,7 @@ async def cancel_booking(
 
 
 @router.patch("/{booking_id}/reschedule", response_model=BookingResponse)
+@router.post("/{booking_id}/reschedule", response_model=BookingResponse)
 async def reschedule_booking(
     booking_id: uuid.UUID,
     req: RescheduleBookingRequest,
@@ -392,6 +399,7 @@ async def reschedule_booking(
     old_booking.start_time = new_slot_start_utc
     old_booking.end_time = new_slot_end_utc
     old_booking.status = "confirmed"
+    old_booking.is_rescheduled = True
     old_booking.meeting_provider = meeting_details.provider
     old_booking.meeting_join_url = meeting_details.join_url
     old_booking.meeting_host_url = meeting_details.host_url

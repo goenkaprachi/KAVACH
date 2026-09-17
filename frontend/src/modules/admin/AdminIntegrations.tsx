@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { Video, ShieldCheck, CheckCircle2, Settings2, Key, X, AlertTriangle } from 'lucide-react';
+import { Video, ShieldCheck, Settings2, X, AlertTriangle, Radio } from 'lucide-react';
+import { Card } from '../../components/Card';
 
 export const AdminIntegrations: React.FC = () => {
   const queryClient = useQueryClient();
@@ -111,17 +112,33 @@ export const AdminIntegrations: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Meeting Provider Hub</h1>
-        <p className="text-sm text-slate-500">
-          Centrally configure video conferencing integrations across your organization
-        </p>
+      {/* Orion Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-sky-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
+            <Radio className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">Meeting Provider Hub</h1>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200">
+                {integrations.length} Providers
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Centrally configure video conferencing integrations across your organization
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start space-x-3 text-xs text-blue-800 leading-relaxed">
-        <ShieldCheck className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+      {/* Zero Setup Callout */}
+      <div className="p-4 bg-gradient-to-r from-cyan-50/90 via-sky-50/60 to-indigo-50/40 border border-cyan-200/80 rounded-2xl flex items-start gap-3.5 text-xs text-cyan-950 leading-relaxed shadow-xs">
+        <div className="p-1.5 bg-cyan-500/10 rounded-lg text-cyan-700 mt-0.5 flex-shrink-0">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
         <div>
-          <span className="font-bold">Zero-Setup Determinism Guaranteed:</span>{' '}
+          <span className="font-bold text-cyan-900">Zero-Setup Determinism Guaranteed:</span>{' '}
           Kavach Connect automatically uses Jitsi Meet as the safety net default. If any third-party provider credentials fail or expire at booking time, the engine automatically generates a secure Jitsi link so no booking is ever left without a join link.
         </div>
       </div>
@@ -144,7 +161,7 @@ export const AdminIntegrations: React.FC = () => {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-40 bg-slate-100 rounded-xl" />
+            <div key={i} className="h-40 bg-slate-100 rounded-2xl" />
           ))}
         </div>
       ) : (
@@ -154,13 +171,13 @@ export const AdminIntegrations: React.FC = () => {
             return (
               <div
                 key={item.provider}
-                className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+                className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-3">
-                      <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
-                        <Video className="h-5 w-5 text-blue-600" />
+                      <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-50 to-sky-100 border border-cyan-200/60 flex items-center justify-center text-cyan-700">
+                        <Video className="h-5 w-5" />
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm">{item.display_name}</h3>
@@ -177,17 +194,17 @@ export const AdminIntegrations: React.FC = () => {
                         Not Configured
                       </span>
                     ) : item.is_enabled ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         Enabled
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                         Disabled
                       </span>
                     )}
                   </div>
 
-                  <p className="mt-4 text-xs text-slate-600">
+                  <p className="mt-4 text-xs text-slate-600 leading-relaxed">
                     {item.notes || `Configure org-wide ${item.display_name} credentials for employee bookings.`}
                   </p>
                 </div>
@@ -201,9 +218,10 @@ export const AdminIntegrations: React.FC = () => {
                       {item.is_configured ? (
                         <>
                           <button
+                            type="button"
                             onClick={() => toggleMutation.mutate(item.provider)}
                             disabled={toggleMutation.isPending}
-                            className={`text-xs px-2.5 py-1 rounded font-semibold transition-colors ${
+                            className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${
                               item.is_enabled
                                 ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
                                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
@@ -212,8 +230,9 @@ export const AdminIntegrations: React.FC = () => {
                             {item.is_enabled ? 'Disable' : 'Enable'}
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleOpenConfig(item)}
-                            className="inline-flex items-center space-x-1 text-xs font-semibold text-blue-600 hover:text-blue-700 px-2.5 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center space-x-1 text-xs font-semibold text-cyan-700 hover:text-cyan-800 px-2.5 py-1 bg-cyan-50 rounded-lg hover:bg-cyan-100 transition-colors border border-cyan-200/60"
                           >
                             <Settings2 className="h-3.5 w-3.5" />
                             <span>Configure</span>
@@ -221,8 +240,9 @@ export const AdminIntegrations: React.FC = () => {
                         </>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => handleOpenConfig(item)}
-                          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 px-3 py-1.5 rounded-xl shadow-md shadow-cyan-500/20 transition-all"
                         >
                           <Settings2 className="h-3.5 w-3.5" />
                           <span>Configure</span>
@@ -239,99 +259,113 @@ export const AdminIntegrations: React.FC = () => {
 
       {/* Config Modal */}
       {selectedProvider && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-base">
-                Configure {selectedProvider.display_name}
-              </h3>
+        <div className="modal-overlay" onClick={() => setSelectedProvider(null)}>
+          <div
+            className="modal-sheet max-w-md animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-sky-600 flex items-center justify-center text-white">
+                  <Settings2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    Configure {selectedProvider.display_name}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Provide platform credentials</p>
+                </div>
+              </div>
               <button
+                type="button"
                 onClick={() => setSelectedProvider(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="mt-4 space-y-4">
-              {selectedProvider.provider === 'whereby' ? (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Whereby API Key
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="eyJhbGciOi..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              ) : (
-                <>
-                  {selectedProvider.provider !== 'google_meet' && (
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                        {selectedProvider.provider === 'microsoft_teams' ? 'Tenant ID' : 'Account ID'}
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder={
-                          selectedProvider.provider === 'microsoft_teams'
-                            ? 'Azure AD Tenant ID'
-                            : 'Zoom Account ID'
-                        }
-                        value={accountId}
-                        onChange={(e) => setAccountId(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  )}
-
+            <form onSubmit={handleSave}>
+              <div className="modal-body custom-scrollbar space-y-4">
+                {selectedProvider.provider === 'whereby' ? (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Client ID
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="OAuth Client ID"
-                      value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Client Secret
+                      Whereby API Key
                     </label>
                     <input
                       type="password"
                       required
-                      placeholder="OAuth Client Secret"
-                      value={clientSecret}
-                      onChange={(e) => setClientSecret(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="eyJhbGciOi..."
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                     />
                   </div>
-                </>
-              )}
+                ) : (
+                  <>
+                    {selectedProvider.provider !== 'google_meet' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          {selectedProvider.provider === 'microsoft_teams' ? 'Tenant ID' : 'Account ID'}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder={
+                            selectedProvider.provider === 'microsoft_teams'
+                              ? 'Azure AD Tenant ID'
+                              : 'Zoom Account ID'
+                          }
+                          value={accountId}
+                          onChange={(e) => setAccountId(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                        />
+                      </div>
+                    )}
 
-              <div className="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        Client ID
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="OAuth Client ID"
+                        value={clientId}
+                        onChange={(e) => setClientId(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        Client Secret
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="OAuth Client Secret"
+                        value={clientSecret}
+                        onChange={(e) => setClientSecret(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={() => setSelectedProvider(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saveMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-cyan-500/20 disabled:opacity-50 transition-all"
                 >
                   {saveMutation.isPending ? 'Saving...' : 'Save & Enable'}
                 </button>

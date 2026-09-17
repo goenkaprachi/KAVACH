@@ -216,10 +216,10 @@ export const PublicBookingPage: React.FC = () => {
             onClick={() => setSelectedDate(cloneDay)}
             className={`h-9 w-9 mx-auto rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
               isSelected
-                ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                ? 'bg-gradient-to-r from-cyan-600 to-sky-600 text-white shadow-md shadow-cyan-500/25'
                 : isPast || !isCurrentMonth
                 ? 'text-slate-300 cursor-not-allowed'
-                : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+                : 'text-slate-700 hover:bg-cyan-50 hover:text-cyan-700'
             }`}
           >
             {format(day, 'd')}
@@ -240,7 +240,7 @@ export const PublicBookingPage: React.FC = () => {
   if (loadingEvent) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="h-8 w-8 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -337,7 +337,7 @@ export const PublicBookingPage: React.FC = () => {
               <select
                 value={selectedTz}
                 onChange={(e) => setSelectedTz(e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
               >
                 {COMMON_TIMEZONES.map((tz) => (
                   <option key={tz} value={tz}>
@@ -384,7 +384,7 @@ export const PublicBookingPage: React.FC = () => {
                         <button
                           key={idx}
                           onClick={() => setSelectedSlot(slot)}
-                          className="w-full py-2 px-3 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                          className="w-full py-2 px-3 border border-cyan-600/80 text-cyan-700 hover:bg-gradient-to-r hover:from-cyan-600 hover:to-sky-600 hover:text-white rounded-xl text-xs font-bold transition-all shadow-xs"
                         >
                           {slot.formatted_time}
                         </button>
@@ -405,7 +405,7 @@ export const PublicBookingPage: React.FC = () => {
                 <span>Back to Slots</span>
               </button>
 
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 font-medium">
+              <div className="p-3 bg-cyan-50/80 border border-cyan-200/80 rounded-xl text-xs text-cyan-950 font-medium">
                 Booking for <strong>{format(parseISO(selectedSlot.start_time), 'EEEE, MMMM dd, yyyy')}</strong> at{' '}
                 <strong>{selectedSlot.formatted_time}</strong> ({selectedTz})
               </div>
@@ -428,7 +428,7 @@ export const PublicBookingPage: React.FC = () => {
                     placeholder="Jane Doe"
                     value={inviteeName}
                     onChange={(e) => setInviteeName(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
 
@@ -443,7 +443,7 @@ export const PublicBookingPage: React.FC = () => {
                     placeholder="jane@example.com"
                     value={inviteeEmail}
                     onChange={(e) => setInviteeEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
 
@@ -466,7 +466,7 @@ export const PublicBookingPage: React.FC = () => {
                       onChange={(e) =>
                         setAnswerValues((prev) => ({ ...prev, [field.key]: e.target.value }))
                       }
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                     />
                   </div>
                 ))}
@@ -481,14 +481,14 @@ export const PublicBookingPage: React.FC = () => {
                     placeholder="Briefly state anything you'd like to discuss..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={bookMutation.isPending}
-                  className="w-full mt-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                  className="w-full mt-2 py-2.5 px-4 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white text-xs font-bold rounded-xl shadow-md shadow-cyan-500/20 transition-all disabled:opacity-50"
                 >
                   {bookMutation.isPending ? 'Confirming Booking...' : 'Schedule Meeting'}
                 </button>

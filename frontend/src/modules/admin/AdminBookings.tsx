@@ -6,21 +6,26 @@ import {
   Calendar,
   Clock,
   Video,
-  User,
-  ShieldCheck,
-  Filter,
   Phone,
   Mail,
+  Building,
   Copy,
   Check,
   History,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  AlertCircle,
+  ShieldCheck,
+  Search,
+  RotateCcw,
 } from 'lucide-react';
 import { MeetingDetailsModal, getAttendeePhone } from '../bookings/MeetingDetailsModal';
 import { AdminDeleteBookingModal } from '../bookings/AdminDeleteBookingModal';
+import { StatusBadge } from '../../components/StatusBadge';
+import { Card } from '../../components/Card';
 
 export const AdminBookings: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [providerFilter, setProviderFilter] = useState<string>('');
   const [detailsBooking, setDetailsBooking] = useState<any | null>(null);
@@ -31,10 +36,7 @@ export const AdminBookings: React.FC = () => {
     queryKey: ['admin-bookings', statusFilter, providerFilter],
     queryFn: async () => {
       const res = await api.get('/admin/bookings', {
-        params: {
-          status: statusFilter || undefined,
-          provider: providerFilter || undefined,
-        },
+        params: { status: statusFilter || undefined, provider: providerFilter || undefined },
       });
       return res.data;
     },
@@ -47,196 +49,260 @@ export const AdminBookings: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Filter out legacy duplicate cancelled records from before single-record update
-  const displayBookings = bookings.filter((b: any) => {
-    return !(b.status === 'cancelled' && b.cancellation_reason?.startsWith('Rescheduled'));
+  // Filter legacy duplicate cancelled records
+  const displayBookings = bookings.filter((b: any) =>
+    !(b.status === 'cancelled' && b.cancellation_reason?.startsWith('Rescheduled'))
+  );
+
+  const filteredBookings = displayBookings.filter((b: any) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    const inv = b.invitees?.[0];
+    const name = (inv?.name || '').toLowerCase();
+    const email = (inv?.email || '').toLowerCase();
+    const staff = (b.employee_name || '').toLowerCase();
+    const event = (b.event_type_title || '').toLowerCase();
+    const ref = (b.booking_reference || b.id || '').toLowerCase();
+    return name.includes(term) || email.includes(term) || staff.includes(term) || event.includes(term) || ref.includes(term);
   });
 
   return (
     <div className="space-y-6">
+      {/* Orion Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Organization-Wide Bookings</h1>
-          <p className="text-sm text-slate-500">
-            Audit, inspect attendee details, review change logs, and manage every scheduled meeting across staff
-          </p>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="flex items-center space-x-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Statuses</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-
-          <select
-            value={providerFilter}
-            onChange={(e) => setProviderFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Providers</option>
-            <option value="jitsi">Jitsi Meet</option>
-            <option value="google_meet">Google Meet</option>
-            <option value="zoom">Zoom</option>
-            <option value="phone">Phone</option>
-            <option value="in_person">In Person</option>
-          </select>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-sky-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">Organization Meetings</h1>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200">
+                {displayBookings.length}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">
+              All scheduled meetings across staff with full attendee details and audit access
+            </p>
+          </div>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 animate-pulse h-64" />
-      ) : displayBookings.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-          <Calendar className="h-12 w-12 text-slate-400 mx-auto" />
-          <h3 className="mt-4 text-base font-semibold text-slate-900">No bookings found</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Scheduled meetings matching the selected filters will appear in this audit list.
-          </p>
+      {/* Orion Filter Toolbar Card */}
+      <Card className="p-3.5 bg-white/90 border border-slate-200/90 shadow-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-between">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by attendee, email, staff, or ID..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all text-slate-900"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+            >
+              <option value="">All Statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="rescheduled">Rescheduled</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <select
+              value={providerFilter}
+              onChange={(e) => setProviderFilter(e.target.value)}
+              className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+            >
+              <option value="">All Platforms</option>
+              <option value="jitsi">Jitsi Meet</option>
+              <option value="google_meet">Google Meet</option>
+              <option value="zoom">Zoom</option>
+              <option value="phone">Phone</option>
+              <option value="in_person">In Person</option>
+            </select>
+            {(searchTerm || statusFilter || providerFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('');
+                  setProviderFilter('');
+                }}
+                className="flex items-center gap-1 text-xs text-slate-500 hover:text-cyan-600 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
+      </Card>
+
+      {/* List */}
+      {isLoading ? (
+        <Card className="p-0 overflow-hidden bg-white border border-slate-200/90 shadow-xl shadow-slate-200/50">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="border-b border-slate-100 last:border-b-0 p-4 flex items-center gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-slate-100 rounded w-40 animate-pulse" />
+                <div className="h-3 bg-slate-100 rounded w-56 animate-pulse" />
+              </div>
+              <div className="w-24 h-8 bg-slate-100 rounded animate-pulse" />
+            </div>
+          ))}
+        </Card>
+      ) : filteredBookings.length === 0 ? (
+        <Card className="p-12 text-center bg-white border border-slate-200/90 shadow-xs">
+          <Calendar className="h-10 w-10 text-slate-300 mx-auto" />
+          <h3 className="mt-3 text-sm font-semibold text-slate-900">No meetings found</h3>
+          <p className="mt-1 text-xs text-slate-500">Meetings matching the selected filters will appear here.</p>
+        </Card>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <Card className="p-0 overflow-hidden bg-white border border-slate-200/90 shadow-xl shadow-slate-200/50">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Meeting ID
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Date & Time
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Host Employee
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Attendee / Contact
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Event Type
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-3.5">Attendee</th>
+                  <th className="px-5 py-3.5">Host</th>
+                  <th className="px-5 py-3.5">Date & Time</th>
+                  <th className="px-5 py-3.5">Event Type</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {displayBookings.map((b: any) => {
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filteredBookings.map((b: any, idx: number) => {
                   const startDt = parseISO(b.start_time);
+                  const endDt = parseISO(b.end_time);
                   const inv = b.invitees?.[0];
-                  const phone = getAttendeePhone(inv);
                   const refId = b.booking_reference || b.id.slice(0, 8);
                   const isCopied = copiedId === refId;
+                  const isConfirmed = b.status === 'confirmed';
 
                   return (
-                    <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Meeting ID */}
-                      <td className="px-5 py-4 whitespace-nowrap text-xs font-mono">
-                        <div className="inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200/80 px-2 py-1 rounded text-slate-700">
-                          <span className="font-semibold">{refId}</span>
+                    <tr
+                      key={b.id}
+                      onClick={() => setDetailsBooking(b)}
+                      className={`hover:bg-slate-50/75 transition-colors cursor-pointer ${
+                        idx % 2 !== 0 ? 'bg-slate-50/20' : ''
+                      }`}
+                    >
+                      {/* COL 1: Attendee */}
+                      <td className="px-5 py-4 align-middle">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-cyan-500/15 to-sky-500/15 border border-cyan-500/20 text-cyan-700 flex items-center justify-center font-bold text-xs shrink-0">
+                            {inv?.name ? inv.name.charAt(0).toUpperCase() : 'A'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-900 text-sm truncate hover:text-cyan-700 transition-colors">
+                              {inv?.name || <span className="text-slate-400 italic font-normal">Unknown</span>}
+                            </div>
+                            {inv?.email && (
+                              <div className="text-xs text-slate-500 truncate mt-0.5">
+                                {inv.email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* COL 2: Host */}
+                      <td className="px-5 py-4 align-middle whitespace-nowrap">
+                        <span className="text-xs font-semibold text-slate-800">
+                          {b.employee_name || 'Staff'}
+                        </span>
+                      </td>
+
+                      {/* COL 3: Date & Time */}
+                      <td className="px-5 py-4 align-middle whitespace-nowrap">
+                        <div className="text-xs font-semibold text-slate-800">
+                          {format(startDt, 'dd MMM yyyy')}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {format(startDt, 'hh:mm a')} – {format(endDt, 'hh:mm a')}
+                        </div>
+                      </td>
+
+                      {/* COL 4: Event Type & ID */}
+                      <td className="px-5 py-4 align-middle whitespace-nowrap">
+                        <div className="text-xs font-semibold text-slate-800 truncate">
+                          {b.event_type_title || 'Meeting'}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          <span className="font-mono text-[11px] text-slate-400">
+                            {refId}
+                          </span>
                           <button
                             type="button"
                             onClick={(e) => handleCopyId(e, refId)}
-                            className="text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Copy Meeting ID"
+                            className="text-slate-400 hover:text-cyan-600 transition-colors"
+                            title="Copy meeting ID"
                           >
-                            {isCopied ? (
-                              <Check className="h-3 w-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
+                            {isCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                           </button>
                         </div>
                       </td>
 
-                      {/* Date & Time */}
-                      <td className="px-5 py-4 whitespace-nowrap text-xs text-slate-800 font-medium">
-                        <div className="font-semibold text-slate-900">{format(startDt, 'dd MMM yyyy')}</div>
-                        <div className="text-slate-500 font-normal">{format(startDt, 'hh:mm a')}</div>
-                      </td>
-
-                      {/* Host */}
-                      <td className="px-5 py-4 whitespace-nowrap text-xs font-semibold text-slate-900">
-                        {b.employee_name || 'Staff'}
-                      </td>
-
-                      {/* Attendee Details */}
-                      <td className="px-5 py-4 whitespace-nowrap text-xs text-slate-700">
-                        <div className="font-semibold text-slate-900">{inv?.name || 'N/A'}</div>
-                        <div className="text-slate-500">{inv?.email}</div>
-                        {phone && (
-                          <div className="mt-0.5">
-                            <a
-                              href={`tel:${phone}`}
-                              className="inline-flex items-center space-x-1 font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px] hover:underline"
-                            >
-                              <Phone className="h-3 w-3 text-emerald-600" />
-                              <span>{phone}</span>
-                            </a>
+                      {/* COL 5: Status */}
+                      <td className="px-5 py-4 align-middle whitespace-nowrap">
+                        <StatusBadge
+                          status={
+                            b.status === 'cancelled'
+                              ? 'cancelled'
+                              : (b.is_rescheduled || b.rescheduled_from_id)
+                              ? 'rescheduled'
+                              : b.status
+                          }
+                          label={
+                            b.status === 'cancelled'
+                              ? 'Cancelled'
+                              : (b.is_rescheduled || b.rescheduled_from_id)
+                              ? 'Rescheduled'
+                              : undefined
+                          }
+                          dot
+                        />
+                        {b.cancellation_reason && !b.cancellation_reason.startsWith('Rescheduled') && (
+                          <div className="text-[10px] text-rose-500 mt-1 max-w-[140px] truncate" title={b.cancellation_reason}>
+                            {b.cancellation_reason}
                           </div>
                         )}
                       </td>
 
-                      {/* Event Type */}
-                      <td className="px-5 py-4 whitespace-nowrap text-xs text-slate-800">
-                        <span className="font-medium">{b.event_type_title || 'Meeting'}</span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize border ${
-                            b.status === 'confirmed'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-red-50 text-red-700 border-red-200'
-                          }`}
-                        >
-                          {b.status}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-5 py-4 whitespace-nowrap text-right text-xs">
-                        <div className="inline-flex items-center space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => setDetailsBooking(b)}
-                            className="inline-flex items-center space-x-1 text-slate-700 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                            title="View Meeting Details & Change Logs"
-                          >
-                            <History className="h-3.5 w-3.5 text-slate-500" />
-                            <span>Logs</span>
-                          </button>
-
-                          {b.meeting_join_url && b.status === 'confirmed' && (
+                      {/* COL 6: Actions */}
+                      <td className="px-5 py-4 align-middle text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          {isConfirmed && b.meeting_join_url && (
                             <a
                               href={b.meeting_join_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                              title="Join Video Room"
+                              className="inline-flex items-center gap-1 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-xs"
                             >
                               <Video className="h-3.5 w-3.5" />
-                              <span>Join</span>
+                              Join
                             </a>
                           )}
-
+                          <button
+                            type="button"
+                            onClick={() => setDetailsBooking(b)}
+                            className="px-2.5 py-1.5 text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors shadow-2xs"
+                            title="View details & audit logs"
+                          >
+                            Details
+                          </button>
                           <button
                             type="button"
                             onClick={() => setDeletingBooking(b)}
-                            className="inline-flex items-center space-x-1 text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 hover:border-red-600 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                            title="Hard delete from database"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Permanently delete"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Delete</span>
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -246,10 +312,9 @@ export const AdminBookings: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Meeting Details & Logs Modal */}
       <MeetingDetailsModal
         booking={detailsBooking}
         isOpen={!!detailsBooking}
@@ -258,7 +323,6 @@ export const AdminBookings: React.FC = () => {
         isAdmin={true}
       />
 
-      {/* Admin Delete Confirmation Modal */}
       <AdminDeleteBookingModal
         booking={deletingBooking}
         isOpen={!!deletingBooking}

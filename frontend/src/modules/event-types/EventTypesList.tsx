@@ -19,7 +19,8 @@ import {
   ToggleRight,
   HelpCircle,
   X,
-  Pencil
+  Pencil,
+  Layers
 } from 'lucide-react';
 
 export const EventTypesList: React.FC = () => {
@@ -251,16 +252,28 @@ export const EventTypesList: React.FC = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Meeting Event Types</h1>
-          <p className="text-sm text-slate-500">
-            Create bookable templates for clients and team members
-          </p>
+      {/* Orion Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-sky-600 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 shrink-0">
+            <Layers className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">Event Types</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-cyan-100 text-cyan-700 border border-cyan-200">
+                {eventTypes.length} Active
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Configure bookable templates, appointment lengths, video platforms, and custom questions
+            </p>
+          </div>
         </div>
         <button
+          type="button"
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors"
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           <span>New Event Type</span>
@@ -308,7 +321,7 @@ export const EventTypesList: React.FC = () => {
             </button>
             <button
               onClick={() => handleOpenEdit(newlyCreatedEvent)}
-              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 rounded-lg transition-colors shadow-sm"
+              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 px-3.5 py-1.5 rounded-xl transition-all shadow-md shadow-cyan-500/20"
             >
               <Pencil className="h-3.5 w-3.5" />
               <span>Edit Template</span>
@@ -327,19 +340,19 @@ export const EventTypesList: React.FC = () => {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 bg-slate-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : eventTypes.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-          <Clock className="h-12 w-12 text-slate-400 mx-auto" />
-          <h3 className="mt-4 text-base font-semibold text-slate-900">No event types created yet</h3>
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center shadow-xs">
+          <Clock className="h-12 w-12 text-slate-300 mx-auto" />
+          <h3 className="mt-4 text-base font-bold text-slate-900">No event types created yet</h3>
           <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
             Event types are meeting templates like a 15-minute quick chat or 45-minute consultation.
           </p>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="mt-6 inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+            className="mt-6 inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-cyan-500/20 transition-all"
           >
             <Plus className="h-4 w-4" />
             <span>Create Your First Template</span>
@@ -453,195 +466,204 @@ export const EventTypesList: React.FC = () => {
 
       {/* New Event Type Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-5 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-lg">Create New Event Type</h3>
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div
+            className="modal-sheet max-w-lg animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Create New Event Type</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Configure schedule, duration, location and intake</p>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Event Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 30 Minute Strategy Call"
-                  value={title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  URL Slug
-                </label>
-                <div className="mt-1 flex rounded-md shadow-sm">
-                  <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs font-mono">
-                    /{user?.username}/
-                  </span>
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body custom-scrollbar space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Event Name
+                  </label>
                   <input
                     type="text"
                     required
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
-                    className="block w-full px-3 py-2 border border-slate-300 rounded-r-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 30 Minute Strategy Call"
+                    value={title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Duration (Minutes)
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    URL Slug
                   </label>
-                  <select
-                    value={duration}
-                    onChange={(e) => setDuration(Number(e.target.value))}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value={15}>15 mins</option>
-                    <option value={30}>30 mins</option>
-                    <option value={45}>45 mins</option>
-                    <option value={60}>60 mins</option>
-                    <option value={90}>90 mins</option>
-                  </select>
+                  <div className="flex rounded-xl shadow-2xs">
+                    <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs font-mono">
+                      /{user?.username}/
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-r-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Location / Platform
-                  </label>
-                  <select
-                    value={locationType}
-                    onChange={(e) => setLocationType(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <optgroup label="Video Conferencing (Enabled)">
-                      {enabledIntegrations.length > 0 ? (
-                        enabledIntegrations.map((item: any) => (
-                          <option key={item.provider} value={item.provider}>
-                            {item.display_name}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="jitsi">Video Call (Web Browser)</option>
-                      )}
-                    </optgroup>
-                    <optgroup label="Other Locations">
-                      <option value="phone">Phone Call</option>
-                      <option value="in_person">In-Person Meeting</option>
-                      <option value="custom">Custom Web Link</option>
-                    </optgroup>
-                  </select>
-                </div>
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Duration (Minutes)
+                    </label>
+                    <select
+                      value={duration}
+                      onChange={(e) => setDuration(Number(e.target.value))}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 bg-white"
+                    >
+                      <option value={15}>15 mins</option>
+                      <option value={30}>30 mins</option>
+                      <option value={45}>45 mins</option>
+                      <option value={60}>60 mins</option>
+                      <option value={90}>90 mins</option>
+                    </select>
+                  </div>
 
-              {['phone', 'in_person', 'custom'].includes(locationType) && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Location / Platform
+                    </label>
+                    <select
+                      value={locationType}
+                      onChange={(e) => setLocationType(e.target.value)}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 bg-white"
+                    >
+                      <optgroup label="Video Conferencing (Enabled)">
+                        {enabledIntegrations.length > 0 ? (
+                          enabledIntegrations.map((item: any) => (
+                            <option key={item.provider} value={item.provider}>
+                              {item.display_name}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="jitsi">Video Call (Web Browser)</option>
+                        )}
+                      </optgroup>
+                      <optgroup label="Other Locations">
+                        <option value="phone">Phone Call</option>
+                        <option value="in_person">In-Person Meeting</option>
+                        <option value="custom">Custom Web Link</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+
+                {['phone', 'in_person', 'custom'].includes(locationType) && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Location Details
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        locationType === 'phone'
+                          ? 'Host will call invitee or phone number'
+                          : locationType === 'in_person'
+                          ? 'Office address or room'
+                          : 'https://...'
+                      }
+                      value={locationDetail}
+                      onChange={(e) => setLocationDetail(e.target.value)}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Location Details
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Description / Instructions
                   </label>
-                  <input
-                    type="text"
-                    placeholder={
-                      locationType === 'phone'
-                        ? 'Host will call invitee or phone number'
-                        : locationType === 'in_person'
-                        ? 'Office address or room'
-                        : 'https://...'
-                    }
-                    value={locationDetail}
-                    onChange={(e) => setLocationDetail(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <textarea
+                    rows={3}
+                    placeholder="Share a brief overview of what this meeting is about..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Description / Instructions
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Share a brief overview of what this meeting is about..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                <BookingFieldsEditor fields={bookingFields} onChange={setBookingFields} />
 
-              <BookingFieldsEditor fields={bookingFields} onChange={setBookingFields} />
-
-              {/* Advanced Buffers */}
-              <div className="pt-2 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-2">
-                  Buffer & Notice Controls
-                </span>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500">Buffer Before</label>
-                    <select
-                      value={bufferBefore}
-                      onChange={(e) => setBufferBefore(Number(e.target.value))}
-                      className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"
-                    >
-                      <option value={0}>0 min</option>
-                      <option value={5}>5 min</option>
-                      <option value={10}>10 min</option>
-                      <option value={15}>15 min</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500">Buffer After</label>
-                    <select
-                      value={bufferAfter}
-                      onChange={(e) => setBufferAfter(Number(e.target.value))}
-                      className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"
-                    >
-                      <option value={0}>0 min</option>
-                      <option value={5}>5 min</option>
-                      <option value={10}>10 min</option>
-                      <option value={15}>15 min</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500">Min Notice</label>
-                    <select
-                      value={minNotice}
-                      onChange={(e) => setMinNotice(Number(e.target.value))}
-                      className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"
-                    >
-                      <option value={0}>Immediate</option>
-                      <option value={30}>30 min</option>
-                      <option value={60}>1 hour</option>
-                      <option value={120}>2 hours</option>
-                      <option value={1440}>1 day</option>
-                    </select>
+                {/* Advanced Buffers */}
+                <div className="pt-2 border-t border-slate-100">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-2">
+                    Buffer & Notice Controls
+                  </span>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500">Buffer Before</label>
+                      <select
+                        value={bufferBefore}
+                        onChange={(e) => setBufferBefore(Number(e.target.value))}
+                        className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      >
+                        <option value={0}>0 min</option>
+                        <option value={5}>5 min</option>
+                        <option value={10}>10 min</option>
+                        <option value={15}>15 min</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500">Buffer After</label>
+                      <select
+                        value={bufferAfter}
+                        onChange={(e) => setBufferAfter(Number(e.target.value))}
+                        className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      >
+                        <option value={0}>0 min</option>
+                        <option value={5}>5 min</option>
+                        <option value={10}>10 min</option>
+                        <option value={15}>15 min</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500">Min Notice</label>
+                      <select
+                        value={minNotice}
+                        onChange={(e) => setMinNotice(Number(e.target.value))}
+                        className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      >
+                        <option value={0}>Immediate</option>
+                        <option value={30}>30 min</option>
+                        <option value={60}>1 hour</option>
+                        <option value={120}>2 hours</option>
+                        <option value={1440}>1 day</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 flex justify-end space-x-3 border-t border-slate-100">
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-cyan-500/20 disabled:opacity-50 transition-all"
                 >
                   {createMutation.isPending ? 'Creating...' : 'Create Event Type'}
                 </button>
@@ -653,9 +675,12 @@ export const EventTypesList: React.FC = () => {
 
       {/* Edit Event Type Modal */}
       {editingEvent && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-5 border-b border-slate-100">
+        <div className="modal-overlay" onClick={() => setEditingEvent(null)}>
+          <div
+            className="modal-sheet max-w-lg animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
               <div>
                 <h3 className="font-bold text-slate-900 text-lg">Edit Template</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -663,202 +688,205 @@ export const EventTypesList: React.FC = () => {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setEditingEvent(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Event Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 30 Minute Strategy Call"
-                  value={editTitle}
-                  onChange={(e) => handleEditTitleChange(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  URL Slug
-                </label>
-                <div className="mt-1 flex rounded-md shadow-sm">
-                  <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs font-mono">
-                    /{user?.username}/
-                  </span>
+            <form onSubmit={handleEditSubmit}>
+              <div className="modal-body custom-scrollbar space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Event Name
+                  </label>
                   <input
                     type="text"
                     required
-                    value={editSlug}
-                    onChange={(e) => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
-                    className="block w-full px-3 py-2 border border-slate-300 rounded-r-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 30 Minute Strategy Call"
+                    value={editTitle}
+                    onChange={(e) => handleEditTitleChange(e.target.value)}
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Duration (Minutes)
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    URL Slug
                   </label>
-                  <select
-                    value={editDuration}
-                    onChange={(e) => setEditDuration(Number(e.target.value))}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value={15}>15 mins</option>
-                    <option value={30}>30 mins</option>
-                    <option value={45}>45 mins</option>
-                    <option value={60}>60 mins</option>
-                    <option value={90}>90 mins</option>
-                  </select>
+                  <div className="flex rounded-xl shadow-2xs">
+                    <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs font-mono">
+                      /{user?.username}/
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={editSlug}
+                      onChange={(e) => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-r-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Location / Platform
-                  </label>
-                  <select
-                    value={editLocationType}
-                    onChange={(e) => setEditLocationType(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <optgroup label="Video Conferencing (Enabled)">
-                      {enabledIntegrations.length > 0 ? (
-                        enabledIntegrations.map((item: any) => (
-                          <option key={item.provider} value={item.provider}>
-                            {item.display_name}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="jitsi">Video Call (Web Browser)</option>
-                      )}
-                      {!['phone', 'in_person', 'custom'].includes(editLocationType) &&
-                        !enabledIntegrations.some((item: any) => item.provider === editLocationType) && (
-                          <option value={editLocationType}>
-                            {formatLocationName(editLocationType)} (Currently Disabled)
-                          </option>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Duration (Minutes)
+                    </label>
+                    <select
+                      value={editDuration}
+                      onChange={(e) => setEditDuration(Number(e.target.value))}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 bg-white"
+                    >
+                      <option value={15}>15 mins</option>
+                      <option value={30}>30 mins</option>
+                      <option value={45}>45 mins</option>
+                      <option value={60}>60 mins</option>
+                      <option value={90}>90 mins</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Location / Platform
+                    </label>
+                    <select
+                      value={editLocationType}
+                      onChange={(e) => setEditLocationType(e.target.value)}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 bg-white"
+                    >
+                      <optgroup label="Video Conferencing (Enabled)">
+                        {enabledIntegrations.length > 0 ? (
+                          enabledIntegrations.map((item: any) => (
+                            <option key={item.provider} value={item.provider}>
+                              {item.display_name}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="jitsi">Video Call (Web Browser)</option>
                         )}
-                    </optgroup>
-                    <optgroup label="Other Locations">
-                      <option value="phone">Phone Call</option>
-                      <option value="in_person">In-Person Meeting</option>
-                      <option value="custom">Custom Web Link</option>
-                    </optgroup>
-                  </select>
+                        {!['phone', 'in_person', 'custom'].includes(editLocationType) &&
+                          !enabledIntegrations.some((item: any) => item.provider === editLocationType) && (
+                            <option value={editLocationType}>
+                              {formatLocationName(editLocationType)} (Currently Disabled)
+                            </option>
+                          )}
+                      </optgroup>
+                      <optgroup label="Other Locations">
+                        <option value="phone">Phone Call</option>
+                        <option value="in_person">In-Person Meeting</option>
+                        <option value="custom">Custom Web Link</option>
+                      </optgroup>
+                    </select>
+                  </div>
                 </div>
-              </div>
 
-              {['phone', 'in_person', 'custom'].includes(editLocationType) && (
+                {['phone', 'in_person', 'custom'].includes(editLocationType) && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Location Details
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        editLocationType === 'phone'
+                          ? 'Host will call invitee or phone number'
+                          : editLocationType === 'in_person'
+                          ? 'Office address or room'
+                          : 'https://...'
+                      }
+                      value={editLocationDetail}
+                      onChange={(e) => setEditLocationDetail(e.target.value)}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Location Details
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Description / Instructions
                   </label>
-                  <input
-                    type="text"
-                    placeholder={
-                      editLocationType === 'phone'
-                        ? 'Host will call invitee or phone number'
-                        : editLocationType === 'in_person'
-                        ? 'Office address or room'
-                        : 'https://...'
-                    }
-                    value={editLocationDetail}
-                    onChange={(e) => setEditLocationDetail(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <textarea
+                    rows={3}
+                    placeholder="Share a brief overview of what this meeting is about..."
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Description / Instructions
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Share a brief overview of what this meeting is about..."
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                <BookingFieldsEditor fields={editBookingFields} onChange={setEditBookingFields} />
 
-              <BookingFieldsEditor fields={editBookingFields} onChange={setEditBookingFields} />
-
-              {/* Advanced Buffers */}
-              <div className="pt-2 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-2">
-                  Buffer & Notice Controls
-                </span>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500">Buffer Before</label>
-                    <select
-                      value={editBufferBefore}
-                      onChange={(e) => setEditBufferBefore(Number(e.target.value))}
-                      className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"
-                    >
-                      <option value={0}>0 min</option>
-                      <option value={5}>5 min</option>
-                      <option value={10}>10 min</option>
-                      <option value={15}>15 min</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500">Buffer After</label>
-                    <select
-                      value={editBufferAfter}
-                      onChange={(e) => setEditBufferAfter(Number(e.target.value))}
-                      className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"
-                    >
-                      <option value={0}>0 min</option>
-                      <option value={5}>5 min</option>
-                      <option value={10}>10 min</option>
-                      <option value={15}>15 min</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-500">Min Notice</label>
-                    <select
-                      value={editMinNotice}
-                      onChange={(e) => setEditMinNotice(Number(e.target.value))}
-                      className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"
-                    >
-                      <option value={0}>Immediate</option>
-                      <option value={30}>30 min</option>
-                      <option value={60}>1 hour</option>
-                      <option value={120}>2 hours</option>
-                      <option value={1440}>1 day</option>
-                    </select>
+                {/* Advanced Buffers */}
+                <div className="pt-2 border-t border-slate-100">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-2">
+                    Buffer & Notice Controls
+                  </span>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500">Buffer Before</label>
+                      <select
+                        value={editBufferBefore}
+                        onChange={(e) => setEditBufferBefore(Number(e.target.value))}
+                        className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      >
+                        <option value={0}>0 min</option>
+                        <option value={5}>5 min</option>
+                        <option value={10}>10 min</option>
+                        <option value={15}>15 min</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500">Buffer After</label>
+                      <select
+                        value={editBufferAfter}
+                        onChange={(e) => setEditBufferAfter(Number(e.target.value))}
+                        className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      >
+                        <option value={0}>0 min</option>
+                        <option value={5}>5 min</option>
+                        <option value={10}>10 min</option>
+                        <option value={15}>15 min</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-500">Min Notice</label>
+                      <select
+                        value={editMinNotice}
+                        onChange={(e) => setEditMinNotice(Number(e.target.value))}
+                        className="mt-1 block w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      >
+                        <option value={0}>Immediate</option>
+                        <option value={30}>30 min</option>
+                        <option value={60}>1 hour</option>
+                        <option value={120}>2 hours</option>
+                        <option value={1440}>1 day</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
+
+                {updateMutation.isError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+                    {(updateMutation.error as any)?.response?.data?.detail || 'Failed to save changes. Please try again.'}
+                  </div>
+                )}
               </div>
 
-              {updateMutation.isError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
-                  {(updateMutation.error as any)?.response?.data?.detail || 'Failed to save changes. Please try again.'}
-                </div>
-              )}
-
-              <div className="pt-4 flex justify-end space-x-3 border-t border-slate-100">
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={() => setEditingEvent(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-cyan-500/20 disabled:opacity-50 transition-all"
                 >
                   {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
                 </button>

@@ -166,38 +166,53 @@ export const AvailabilityEditor: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl space-y-8">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Working Hours & Availability</h1>
-        <p className="text-sm text-slate-500">
-          Set your regular weekly bookable hours and add date-specific holiday overrides
-        </p>
+    <div className="max-w-4xl space-y-6">
+      {/* Orion Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-sky-600 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 shrink-0">
+            <Clock className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">Availability</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-cyan-100 text-cyan-700 border border-cyan-200">
+                Weekly Schedule
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Set your regular weekly bookable hours and add date-specific holiday overrides
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSaveWeekly}
+          disabled={updateMutation.isPending}
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-cyan-500/20 transition-all disabled:opacity-50 cursor-pointer"
+        >
+          {saveSuccess ? (
+            <>
+              <Check className="h-4 w-4 text-emerald-200" />
+              <span>Saved Successfully!</span>
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              <span>{updateMutation.isPending ? 'Saving...' : 'Save Schedule'}</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Weekly Schedule Box */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+      <div className="glass-panel border border-slate-200/90 rounded-2xl p-6 shadow-xs">
         <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-5">
           <div className="flex items-center space-x-2">
-            <Clock className="h-5 w-5 text-blue-600" />
+            <Clock className="h-5 w-5 text-cyan-600" />
             <h2 className="font-bold text-slate-900 text-base">Weekly Recurring Hours</h2>
           </div>
-          <button
-            onClick={handleSaveWeekly}
-            disabled={updateMutation.isPending}
-            className="inline-flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors disabled:opacity-50"
-          >
-            {saveSuccess ? (
-              <>
-                <Check className="h-4 w-4 text-emerald-300" />
-                <span>Saved!</span>
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                <span>Save Schedule</span>
-              </>
-            )}
-          </button>
         </div>
 
         <div className="space-y-3">

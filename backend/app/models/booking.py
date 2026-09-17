@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from sqlalchemy import String, Text, DateTime, ForeignKey, Index, Uuid, JSON
+from sqlalchemy import String, Text, DateTime, ForeignKey, Index, Uuid, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, generate_uuid, generate_booking_reference, utc_now
 
@@ -25,6 +25,7 @@ class Booking(Base):
     cancellation_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     cancelled_by: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # employee | invitee
     rescheduled_from_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("bookings.id"), nullable=True)
+    is_rescheduled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { COMMON_TIMEZONES } from '../../lib/utils';
-import { 
+import {
   Users, 
   UserPlus, 
   Mail, 
@@ -13,8 +13,11 @@ import {
   Copy, 
   Check, 
   ExternalLink,
-  X 
+  X,
+  RefreshCw
 } from 'lucide-react';
+import { Card } from '../../components/Card';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export const AdminEmployees: React.FC = () => {
   const queryClient = useQueryClient();
@@ -77,29 +80,47 @@ export const AdminEmployees: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Employee Organization Roster</h1>
-          <p className="text-sm text-slate-500">
-            Admin oversight: onboard staff, manage permissions, and track booking activity
-          </p>
+      {/* Orion Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-sky-600 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 shrink-0">
+            <Users className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">Employees</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-cyan-100 text-cyan-700 border border-cyan-200">
+                {employees.length} Members
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Admin oversight: onboard staff, manage permissions, and track booking activity
+            </p>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            setLastInvited(null);
-            setIsInviteOpen(true);
-          }}
-          className="inline-flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors"
-        >
-          <UserPlus className="h-4 w-4" />
-          <span>Invite Employee</span>
-        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setLastInvited(null);
+              setIsInviteOpen(true);
+            }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Invite Employee</span>
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 animate-pulse h-64" />
+        <Card className="p-12 text-center text-sm font-medium text-slate-500">
+          <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-cyan-600" />
+          Loading Employee Roster...
+        </Card>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <Card className="p-0 overflow-hidden bg-white border border-slate-200/90 shadow-xl shadow-slate-200/50">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
@@ -232,18 +253,18 @@ export const AdminEmployees: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {/* Invite Modal */}
       {isInviteOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6">
+        <div className="modal-overlay" onClick={() => setIsInviteOpen(false)}>
+          <div className="modal-sheet max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-base">Invite Team Member</h3>
               <button
                 onClick={() => setIsInviteOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -256,18 +277,19 @@ export const AdminEmployees: React.FC = () => {
                 <p className="text-xs text-slate-600">
                   An email was sent to <strong>{lastInvited.email}</strong>. You can also copy the direct invitation link below:
                 </p>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs font-mono break-all text-left">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-mono break-all text-left">
                   <span>{`${window.location.origin}/accept-invite?token=${lastInvited.invite_token}`}</span>
                   <button
                     onClick={() => copyInviteLink(lastInvited.invite_token)}
-                    className="ml-2 p-1.5 bg-white border border-slate-200 rounded hover:bg-slate-50 text-slate-700 flex-shrink-0"
+                    className="ml-2 p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 flex-shrink-0"
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsInviteOpen(false)}
-                  className="w-full mt-2 py-2 bg-slate-800 text-white text-xs font-semibold rounded-lg"
+                  className="w-full mt-2 py-2.5 bg-gradient-to-r from-cyan-600 to-sky-600 text-white text-xs font-bold rounded-xl shadow-md shadow-cyan-500/20"
                 >
                   Done
                 </button>
@@ -284,7 +306,7 @@ export const AdminEmployees: React.FC = () => {
                     placeholder="e.g. John Doe"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>
 
@@ -298,7 +320,7 @@ export const AdminEmployees: React.FC = () => {
                     placeholder="employee@kavach.infra"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>
 
@@ -310,7 +332,7 @@ export const AdminEmployees: React.FC = () => {
                     <select
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white"
                     >
                       <option value="employee">Employee</option>
                       <option value="admin">Administrator</option>
@@ -324,7 +346,7 @@ export const AdminEmployees: React.FC = () => {
                     <select
                       value={timezone}
                       onChange={(e) => setTimezone(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white"
                     >
                       {COMMON_TIMEZONES.map((tz) => (
                         <option key={tz} value={tz}>
@@ -339,14 +361,14 @@ export const AdminEmployees: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsInviteOpen(false)}
-                    className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={inviteMutation.isPending}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-sm disabled:opacity-50"
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-500/20 disabled:opacity-50"
                   >
                     {inviteMutation.isPending ? 'Sending Invite...' : 'Send Invitation'}
                   </button>

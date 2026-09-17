@@ -46,8 +46,11 @@ export const AdminDeleteBookingModal: React.FC<AdminDeleteBookingModalProps> = (
   const invitee = booking.invitees?.[0];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-sheet max-w-md p-6 animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center space-x-2.5 text-red-600">
             <div className="p-2 bg-red-100 rounded-xl">

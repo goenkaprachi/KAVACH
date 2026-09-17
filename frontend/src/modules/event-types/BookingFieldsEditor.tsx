@@ -60,7 +60,7 @@ export const BookingFieldsEditor: React.FC<BookingFieldsEditorProps> = ({ fields
         {selectedFields.map((field) => (
           <span
             key={field.key}
-            className="inline-flex items-center space-x-1.5 pl-2.5 pr-1.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200"
+            className="inline-flex items-center space-x-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-medium bg-cyan-50 text-cyan-800 border border-cyan-200"
           >
             <span>{field.label}</span>
             <button
@@ -78,7 +78,7 @@ export const BookingFieldsEditor: React.FC<BookingFieldsEditorProps> = ({ fields
             <button
               type="button"
               onClick={() => removeField(field.key)}
-              className="text-blue-400 hover:text-red-600 transition-colors"
+              className="text-cyan-600 hover:text-red-600 transition-colors"
               title={`Remove ${field.label} field`}
             >
               <X className="h-3 w-3" />
@@ -102,7 +102,7 @@ export const BookingFieldsEditor: React.FC<BookingFieldsEditorProps> = ({ fields
                 key={suggestion.key}
                 type="button"
                 onClick={() => addField(suggestion.label)}
-                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs font-medium bg-white text-slate-600 border border-dashed border-slate-300 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50 transition-colors"
+                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-white text-slate-600 border border-dashed border-slate-300 hover:border-cyan-400 hover:text-cyan-700 hover:bg-cyan-50/50 transition-colors"
               >
                 <Plus className="h-3 w-3" />
                 <span>{suggestion.label}</span>
@@ -126,7 +126,7 @@ export const BookingFieldsEditor: React.FC<BookingFieldsEditorProps> = ({ fields
               setCustomInput('');
             }
           }}
-          className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs flex-1 focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-1.5 border border-slate-300 rounded-xl text-xs flex-1 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
         />
         <button
           type="button"
