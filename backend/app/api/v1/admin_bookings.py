@@ -57,9 +57,15 @@ async def list_org_bookings(
     for b in bookings:
         item = BookingResponse.model_validate(b)
         item.is_rescheduled = bool(getattr(b, "is_rescheduled", False) or b.rescheduled_from_id is not None)
-        if b.event_type:
-            item.event_type_title = b.event_type.title
-            item.event_type_slug = b.event_type.slug
+        if b.event_type_id is not None or b.event_type:
+            item.title = "Meeting with Kavach"
+            item.event_type_title = "Meeting with Kavach"
+            if b.event_type:
+                item.event_type_slug = b.event_type.slug
+        else:
+            item.event_type_title = b.title or "Internal Meeting"
+            if b.event_type:
+                item.event_type_slug = b.event_type.slug
         if b.employee:
             item.employee_name = b.employee.name
             item.employee_username = b.employee.username
@@ -81,14 +87,18 @@ async def delete_booking_permanently(
     if not booking:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    # Disassociate any legacy bookings that reference this booking as rescheduled_from_id
     from sqlalchemy import update, delete
-    from app.models.notification import AuditLog
+    from app.models.booking import Invitee
+    from app.models.notification import NotificationsLog, AuditLog
+
+    # Disassociate any legacy bookings that reference this booking as rescheduled_from_id
     await db.execute(
         update(Booking).where(Booking.rescheduled_from_id == booking_id).values(rescheduled_from_id=None)
     )
 
-    # Delete any audit logs associated with this meeting
+    # Delete invitees, notifications, and audit logs
+    await db.execute(delete(Invitee).where(Invitee.booking_id == booking_id))
+    await db.execute(delete(NotificationsLog).where(NotificationsLog.booking_id == booking_id))
     await db.execute(
         delete(AuditLog).where(
             AuditLog.entity_type == "booking",
@@ -96,7 +106,7 @@ async def delete_booking_permanently(
         )
     )
 
-    # Delete booking - cascade will clean up invitees and notifications_log
+    # Delete booking
     await db.delete(booking)
     await db.commit()
 

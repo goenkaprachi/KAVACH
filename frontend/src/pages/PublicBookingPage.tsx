@@ -15,6 +15,7 @@ import {
   isSameDay, 
   addDays, 
   isBefore, 
+  isAfter,
   startOfToday,
   parseISO
 } from 'date-fns';
@@ -30,7 +31,9 @@ import {
   User, 
   Mail, 
   ArrowLeft,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles,
+  Shield
 } from 'lucide-react';
 
 export const PublicBookingPage: React.FC = () => {
@@ -82,6 +85,51 @@ export const PublicBookingPage: React.FC = () => {
   }, [eventType]);
 
   const [answerValues, setAnswerValues] = useState<Record<string, string>>({});
+
+  // Attendee location choice state
+  const isAttendeeChoice = useMemo(() => {
+    return (
+      eventType?.location_type === 'attendee_choice' ||
+      (Array.isArray(eventType?.allowed_locations) && eventType.allowed_locations.length > 1)
+    );
+  }, [eventType]);
+
+  const allowedLocations = useMemo(() => {
+    if (Array.isArray(eventType?.allowed_locations) && eventType.allowed_locations.length > 0) {
+      return eventType.allowed_locations;
+    }
+    if (eventType?.location_type && eventType.location_type !== 'attendee_choice') {
+      return [
+        {
+          type: eventType.location_type,
+          label:
+            eventType.location_type === 'google_meet'
+              ? 'Google Meet'
+              : eventType.location_type === 'phone'
+              ? 'Phone Call'
+              : eventType.location_type === 'in_person'
+              ? 'In-Person Meeting'
+              : 'Video Call',
+          detail: eventType.location_detail,
+        },
+      ];
+    }
+    return [
+      { type: 'google_meet', label: 'Google Meet' },
+      { type: 'phone', label: 'Phone Call', detail: 'Host will call invitee' },
+    ];
+  }, [eventType]);
+
+  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [attendeePhone, setAttendeePhone] = useState<string>('');
+
+  useEffect(() => {
+    if (allowedLocations.length > 0) {
+      if (!selectedLocation || !allowedLocations.some((l: any) => l.type === selectedLocation)) {
+        setSelectedLocation(allowedLocations[0].type);
+      }
+    }
+  }, [allowedLocations, selectedLocation]);
 
   // Reset answers whenever the set of configured fields changes (new event type loaded)
   useEffect(() => {
@@ -145,6 +193,21 @@ export const PublicBookingPage: React.FC = () => {
       }
     });
 
+    // If attendee selected phone call, ensure contact phone number is present
+    if (selectedLocation === 'phone') {
+      const existingPhone =
+        custom_answers['Contact No.'] ||
+        custom_answers['Contact Number'] ||
+        custom_answers['Phone'] ||
+        custom_answers['Phone Number'];
+      if (!existingPhone && attendeePhone.trim()) {
+        custom_answers['Contact No.'] = attendeePhone.trim();
+      } else if (!existingPhone && !attendeePhone.trim()) {
+        setBookingError('Please provide your phone number so the host can call you at the scheduled time.');
+        return;
+      }
+    }
+
     bookMutation.mutate({
       event_type_id: eventType.id,
       start_time: selectedSlot.start_time,
@@ -152,6 +215,7 @@ export const PublicBookingPage: React.FC = () => {
       invitee_email: inviteeEmail,
       invitee_timezone: selectedTz,
       custom_answers,
+      location_choice: selectedLocation || undefined,
       notes: notes.trim() || undefined,
     });
   };
@@ -197,6 +261,8 @@ export const PublicBookingPage: React.FC = () => {
     const monthEnd = endOfMonth(monthStart);
     const startDate = startOfWeek(monthStart);
     const endDate = endOfWeek(monthEnd);
+    const maxAdvanceDays = eventType?.max_days_in_advance ?? 30;
+    const maxAdvanceDate = addDays(today, maxAdvanceDays);
 
     const rows = [];
     let days = [];
@@ -206,18 +272,20 @@ export const PublicBookingPage: React.FC = () => {
       for (let i = 0; i < 7; i++) {
         const cloneDay = day;
         const isPast = isBefore(cloneDay, today);
+        const isBeyondAdvance = isAfter(cloneDay, maxAdvanceDate);
         const isSelected = isSameDay(cloneDay, selectedDate);
         const isCurrentMonth = isSameMonth(cloneDay, monthStart);
+        const isDisabled = isPast || !isCurrentMonth || isBeyondAdvance;
 
         days.push(
           <button
             key={day.toString()}
-            disabled={isPast || !isCurrentMonth}
+            disabled={isDisabled}
             onClick={() => setSelectedDate(cloneDay)}
             className={`h-9 w-9 mx-auto rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
               isSelected
                 ? 'bg-gradient-to-r from-cyan-600 to-sky-600 text-white shadow-md shadow-cyan-500/25'
-                : isPast || !isCurrentMonth
+                : isDisabled
                 ? 'text-slate-300 cursor-not-allowed'
                 : 'text-slate-700 hover:bg-cyan-50 hover:text-cyan-700'
             }`}
@@ -288,38 +356,92 @@ export const PublicBookingPage: React.FC = () => {
                 <span>{eventType.duration_minutes} minutes</span>
               </div>
               <div className="flex items-center space-x-2">
-                {eventType.location_type === 'phone' ? (
-                  <Phone className="h-4 w-4 text-emerald-600" />
-                ) : eventType.location_type === 'in_person' ? (
-                  <MapPin className="h-4 w-4 text-emerald-600" />
+                {isAttendeeChoice ? (
+                  <>
+                    <Sparkles className="h-4 w-4 text-violet-600" />
+                    <span>Attendee Choice ({allowedLocations.length} options)</span>
+                  </>
                 ) : (
-                  <Video className="h-4 w-4 text-emerald-600" />
-                )}
-                <span>
-                  {eventType.location_type === 'jitsi'
-                    ? 'Video Call'
-                    : eventType.location_type === 'google_meet'
-                    ? 'Google Meet'
-                    : eventType.location_type === 'zoom'
-                    ? 'Zoom Video'
-                    : eventType.location_type === 'microsoft_teams'
-                    ? 'Microsoft Teams'
-                    : eventType.location_type === 'whereby'
-                    ? 'Whereby'
-                    : eventType.location_type === 'phone'
-                    ? 'Phone Call'
-                    : eventType.location_type === 'in_person'
-                    ? 'In-Person Meeting'
-                    : eventType.location_type === 'custom'
-                    ? 'Web Link'
-                    : eventType.location_type.replace(/_/g, ' ')}
-                  {eventType.location_detail && (
-                    <span className="font-normal text-slate-500 ml-1.5">
-                      ({eventType.location_detail})
+                  <>
+                    {eventType.location_type === 'phone' ? (
+                      <Phone className="h-4 w-4 text-emerald-600" />
+                    ) : eventType.location_type === 'in_person' ? (
+                      <MapPin className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <Video className="h-4 w-4 text-emerald-600" />
+                    )}
+                    <span>
+                      {eventType.location_type === 'jitsi'
+                        ? 'Video Call'
+                        : eventType.location_type === 'google_meet'
+                        ? 'Google Meet'
+                        : eventType.location_type === 'zoom'
+                        ? 'Zoom Video'
+                        : eventType.location_type === 'microsoft_teams'
+                        ? 'Microsoft Teams'
+                        : eventType.location_type === 'whereby'
+                        ? 'Whereby'
+                        : eventType.location_type === 'phone'
+                        ? 'Phone Call'
+                        : eventType.location_type === 'in_person'
+                        ? 'In-Person Meeting'
+                        : eventType.location_type === 'custom'
+                        ? 'Web Link'
+                        : eventType.location_type.replace(/_/g, ' ')}
+                      {eventType.location_detail && (
+                        <span className="font-normal text-slate-500 ml-1.5">
+                          ({eventType.location_detail})
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
+                  </>
+                )}
               </div>
+
+              {(eventType.min_notice_minutes || 0) > 60 && (
+                <div className="flex items-center space-x-2 text-slate-500 font-medium">
+                  <Shield className="h-4 w-4 text-cyan-600" />
+                  <span>
+                    Min {eventType.min_notice_minutes >= 1440
+                      ? `${Math.round(eventType.min_notice_minutes / 1440)} day(s)`
+                      : `${Math.round(eventType.min_notice_minutes / 60)} hour(s)`} notice required
+                  </span>
+                </div>
+              )}
+
+              {/* Booking Distribution Badge */}
+              {eventType.booking_type === 'group' && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center space-x-1.5 text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg">
+                    <span>👥 Group Session (Max {eventType.group_capacity || 10} attendees)</span>
+                  </span>
+                </div>
+              )}
+              {eventType.booking_type === 'round_robin' && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center space-x-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg">
+                    <span>🔄 Team Round-Robin Allocation</span>
+                  </span>
+                </div>
+              )}
+              {eventType.booking_type === 'collective' && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                    <span>👥 Collective Panel Meeting</span>
+                  </span>
+                </div>
+              )}
+              {/* Price Badge */}
+              {eventType.payment_provider && eventType.payment_provider !== 'none' && eventType.price_amount && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center space-x-1.5 text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-lg">
+                    <span>💳 Paid Meeting —{' '}
+                      {eventType.currency === 'INR' ? '₹' : eventType.currency === 'USD' ? '$' : eventType.currency === 'EUR' ? '€' : eventType.currency + ' '}
+                      {(eventType.price_amount / 100).toFixed(2)}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
 
             {eventType.description && (
@@ -384,9 +506,14 @@ export const PublicBookingPage: React.FC = () => {
                         <button
                           key={idx}
                           onClick={() => setSelectedSlot(slot)}
-                          className="w-full py-2 px-3 border border-cyan-600/80 text-cyan-700 hover:bg-gradient-to-r hover:from-cyan-600 hover:to-sky-600 hover:text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                          className="w-full py-2 px-3 border border-cyan-600/80 text-cyan-700 hover:bg-gradient-to-r hover:from-cyan-600 hover:to-sky-600 hover:text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-between group"
                         >
-                          {slot.formatted_time}
+                          <span>{slot.formatted_time}</span>
+                          {slot.remaining_capacity !== undefined && (
+                            <span className="text-[10px] font-semibold bg-cyan-100/80 text-cyan-800 px-1.5 py-0.5 rounded-md group-hover:bg-white/20 group-hover:text-white transition-colors">
+                              {slot.remaining_capacity} {slot.remaining_capacity === 1 ? 'spot left' : 'spots left'}
+                            </span>
+                          )}
                         </button>
                       ))
                     )}
@@ -417,6 +544,66 @@ export const PublicBookingPage: React.FC = () => {
               )}
 
               <form onSubmit={handleBookingSubmit} className="space-y-3.5">
+                {/* Meeting Platform / Location Choice (if multiple enabled) */}
+                {isAttendeeChoice && allowedLocations.length > 1 && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+                      <span>How would you like to meet? <span className="text-red-500">*</span></span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {allowedLocations.map((loc: any) => {
+                        const isSel = selectedLocation === loc.type;
+                        return (
+                          <button
+                            type="button"
+                            key={loc.type}
+                            onClick={() => setSelectedLocation(loc.type)}
+                            className={`flex items-start p-3 rounded-xl border text-left transition-all ${
+                              isSel
+                                ? 'border-cyan-600 bg-cyan-50/70 shadow-xs ring-1 ring-cyan-500/30'
+                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                            }`}
+                          >
+                            <div
+                              className={`p-2 rounded-lg mr-2.5 flex-shrink-0 ${
+                                isSel ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {loc.type === 'google_meet' ? (
+                                <Video className="h-4 w-4" />
+                              ) : loc.type === 'phone' ? (
+                                <Phone className="h-4 w-4" />
+                              ) : loc.type === 'in_person' ? (
+                                <MapPin className="h-4 w-4" />
+                              ) : (
+                                <Video className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                                <span>{loc.label}</span>
+                                {isSel && (
+                                  <span className="h-2 w-2 rounded-full bg-cyan-600 ring-2 ring-cyan-200"></span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                                {loc.type === 'google_meet'
+                                  ? 'Video call via Google Meet'
+                                  : loc.type === 'phone'
+                                  ? (loc.detail || 'Host will call you at your number')
+                                  : loc.type === 'in_person'
+                                  ? (loc.detail ? `${loc.detail}` : 'In-person meeting')
+                                  : 'Video call in browser'}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* 1. Name */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
@@ -446,6 +633,27 @@ export const PublicBookingPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   />
                 </div>
+
+                {/* Attendee Phone number if Phone Call chosen and not in custom questions */}
+                {selectedLocation === 'phone' &&
+                  !answerFields.some((f) => /contact|phone|mobile/i.test(f.label)) && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        Contact Phone Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="+91 98765 43210"
+                        value={attendeePhone}
+                        onChange={(e) => setAttendeePhone(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        The host will call you at this number at the scheduled time.
+                      </p>
+                    </div>
+                  )}
 
                 {/* 3. Admin-configured intake fields */}
                 {answerFields.map((field) => (
@@ -485,12 +693,27 @@ export const PublicBookingPage: React.FC = () => {
                   />
                 </div>
 
+                {/* Payment notice */}
+                {eventType?.payment_provider && eventType.payment_provider !== 'none' && eventType.price_amount && (
+                  <div className="rounded-xl bg-violet-50 border border-violet-200 px-4 py-3 text-xs text-violet-800 font-medium">
+                    💳 <strong>Payment required:</strong>{' '}
+                    {eventType.currency === 'INR' ? '₹' : eventType.currency === 'USD' ? '$' : eventType.currency === 'EUR' ? '€' : eventType.currency + ' '}
+                    {(eventType.price_amount / 100).toFixed(2)} via{' '}
+                    {eventType.payment_provider === 'razorpay' ? 'Razorpay' : 'Stripe'}.
+                    You will be redirected to complete payment after scheduling.
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={bookMutation.isPending}
                   className="w-full mt-2 py-2.5 px-4 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white text-xs font-bold rounded-xl shadow-md shadow-cyan-500/20 transition-all disabled:opacity-50"
                 >
-                  {bookMutation.isPending ? 'Confirming Booking...' : 'Schedule Meeting'}
+                  {bookMutation.isPending
+                    ? 'Confirming...'
+                    : eventType?.payment_provider && eventType.payment_provider !== 'none'
+                    ? 'Continue to Payment →'
+                    : 'Schedule Meeting'}
                 </button>
               </form>
             </div>

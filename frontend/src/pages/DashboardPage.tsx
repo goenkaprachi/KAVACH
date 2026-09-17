@@ -18,6 +18,9 @@ import {
   CalendarPlus,
   ShieldCheck,
   Video,
+  BellRing,
+  AlertCircle,
+  CalendarClock,
 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
@@ -68,6 +71,11 @@ export const DashboardPage: React.FC = () => {
     queryKey: ['admin-employees-dashboard'],
     queryFn: async () => (await api.get('/admin/employees')).data,
     enabled: user?.role === 'admin',
+  });
+
+  const { data: reminders = [] } = useQuery({
+    queryKey: ['dashboard-reminders'],
+    queryFn: async () => (await api.get('/bookings/reminders/list', { params: { timeframe: 'all', status: 'pending' } })).data,
   });
 
   const cleanBookings = useMemo(
@@ -183,6 +191,13 @@ export const DashboardPage: React.FC = () => {
       icon: Clock,
       desc: 'Define operating hours, timezone rules, and buffer periods',
       badge: 'Manage hours',
+    },
+    {
+      to: '/reminders',
+      label: 'Follow-ups & Reminders',
+      icon: BellRing,
+      desc: 'Action items, client deliverables, and post-meeting tasks',
+      badge: `${reminders.length} pending`,
     },
     ...(user?.role === 'admin'
       ? [
@@ -468,6 +483,106 @@ export const DashboardPage: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* ── FOLLOW-UP REMINDERS & ACTION ITEMS ──────────────────── */}
+      {reminders.length > 0 && (
+        <Card
+          title={
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                <BellRing className="h-4.5 w-4.5" />
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span>Meeting Follow-ups & Reminders</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-500/15 text-amber-800 border border-amber-500/30">
+                  {reminders.length} Action Items Pending
+                </span>
+              </div>
+            </div>
+          }
+          subtitle="Action items and scheduled follow-ups derived from recent meeting outcomes"
+          action={
+            <Link
+              to="/reminders"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all"
+            >
+              <span>Manage Reminders</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          }
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {reminders.slice(0, 6).map((rem: any) => {
+              const due = rem.followup_date ? parseISO(rem.followup_date) : null;
+              const overdue = due ? isPast(due) : false;
+              const attendee = rem.invitees?.[0]?.name || 'Client Attendee';
+
+              const priorityClasses: Record<string, string> = {
+                urgent: 'bg-rose-500/15 text-rose-700 border-rose-500/30',
+                high: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
+                medium: 'bg-cyan-500/15 text-cyan-700 border-cyan-500/30',
+                low: 'bg-slate-500/15 text-slate-700 border-slate-500/30',
+              };
+
+              return (
+                <div
+                  key={rem.id}
+                  className={`rounded-2xl border p-4 transition-all hover:shadow-md flex flex-col justify-between ${
+                    overdue
+                      ? 'border-rose-300/80 bg-gradient-to-b from-rose-50/40 to-white'
+                      : 'border-slate-200/90 bg-white/80 hover:border-amber-400/60'
+                  }`}
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${
+                          priorityClasses[rem.followup_priority || 'medium'] || priorityClasses.medium
+                        }`}
+                      >
+                        {rem.followup_priority || 'Medium'}
+                      </span>
+                      {due && (
+                        <span
+                          className={`inline-flex items-center gap-1 text-[11px] font-bold ${
+                            overdue ? 'text-rose-600 font-extrabold' : 'text-slate-500'
+                          }`}
+                        >
+                          <CalendarClock className="h-3.5 w-3.5" />
+                          {overdue ? 'Overdue: ' : 'Due: '}
+                          {format(due, 'MMM d, h:mm a')}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
+                        {rem.event_type_title || 'Meeting'} with {attendee}
+                      </h4>
+                      <p className="text-xs text-slate-600 mt-1 line-clamp-2 italic">
+                        &ldquo;{rem.followup_notes || rem.meeting_notes || 'Follow-up required as determined in meeting outcome.'}&rdquo;
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Ref: {rem.booking_reference || rem.id.slice(0, 8)}
+                    </span>
+                    <Link
+                      to="/reminders"
+                      className="text-xs font-bold text-cyan-700 hover:text-cyan-800 flex items-center gap-1"
+                    >
+                      <span>Take Action</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

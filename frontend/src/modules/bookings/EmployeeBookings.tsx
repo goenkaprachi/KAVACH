@@ -39,9 +39,17 @@ import {
   Search,
   RefreshCw,
   History,
+  Plus,
+  FileText,
+  BellRing,
+  UserCheck,
 } from 'lucide-react';
-import { MeetingDetailsModal, getAttendeePhone } from './MeetingDetailsModal';
+import { MeetingDetailsModal } from './MeetingDetailsModal';
+import { getAttendeePhone } from '../../lib/utils';
+import { EditAttendeeModal } from './EditAttendeeModal';
 import { AdminDeleteBookingModal } from './AdminDeleteBookingModal';
+import { ScheduleInternalMeetingModal } from './ScheduleInternalMeetingModal';
+import { MeetingOutcomeModal } from './MeetingOutcomeModal';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Card } from '../../components/Card';
 
@@ -71,6 +79,9 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
   const [detailsBooking, setDetailsBooking] = useState<any | null>(null);
   const [deletingBooking, setDeletingBooking] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [scheduleInternalOpen, setScheduleInternalOpen] = useState(false);
+  const [outcomeBooking, setOutcomeBooking] = useState<any | null>(null);
+  const [editingAttendeeBooking, setEditingAttendeeBooking] = useState<any | null>(null);
 
   // Reschedule state
   const [reschedulingBooking, setReschedulingBooking] = useState<any | null>(null);
@@ -80,15 +91,27 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
   const [customTime, setCustomTime] = useState('');
   const [useCustomTime, setUseCustomTime] = useState(false);
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   // Fetch all meetings
-  const { data: allBookings = [], isLoading, refetch } = useQuery({
+  const { data: allBookings = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['bookings-all'],
     queryFn: async () => {
       const res = await api.get('/bookings', { params: { limit: 200 } });
       return res.data;
     },
   });
+
+  const handleManualRefresh = async () => {
+    setIsManualRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setTimeout(() => {
+        setIsManualRefreshing(false);
+      }, 700);
+    }
+  };
 
   const { data: availableSlots = [], isLoading: loadingSlots } = useQuery({
     queryKey: [
@@ -343,7 +366,7 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
         {/* COL 3: Event Type & Ref ID */}
         <td className="px-6 py-4 align-middle whitespace-nowrap">
           <div className="text-xs font-semibold text-slate-800 truncate">
-            {booking.event_type_title || 'Meeting'}
+            {Boolean(booking.event_type_id) ? 'Meeting with Kavach' : (booking.title || booking.event_type_title || 'Meeting')}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
             <span className="font-mono text-[11px] text-slate-400">
@@ -388,6 +411,33 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
               {booking.cancellation_reason}
             </div>
           )}
+          {booking.followup_required && (
+            <div className="mt-1">
+              <span
+                className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  booking.followup_status === 'completed'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : booking.followup_date && isPast(parseISO(booking.followup_date))
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                }`}
+              >
+                <BellRing className="h-2.5 w-2.5" />
+                <span>
+                  {booking.followup_status === 'completed'
+                    ? 'Follow-up Done'
+                    : booking.followup_date && isPast(parseISO(booking.followup_date))
+                    ? 'Follow-up Overdue'
+                    : 'Follow-up Due'}
+                </span>
+              </span>
+            </div>
+          )}
+          {booking.meeting_outcome && (
+            <div className="text-[10px] text-slate-500 font-medium mt-0.5 capitalize truncate max-w-[140px]">
+              Outcome: {booking.meeting_outcome.replace(/_/g, ' ')}
+            </div>
+          )}
         </td>
 
         {/* COL 5: Actions */}
@@ -413,10 +463,29 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
 
                 <button
                   type="button"
+                  onClick={() => setOutcomeBooking(booking)}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                  title="Record Meeting Notes & Outcome"
+                >
+                  <FileText className="h-3.5 w-3.5 text-cyan-600" />
+                  <span>Outcome</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setDetailsBooking(booking)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                 >
                   Details
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingAttendeeBooking(booking)}
+                  title="Edit Attendee Details"
+                  className="p-1.5 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <UserCheck className="h-4 w-4" />
                 </button>
 
                 {isConfirmed && (
@@ -424,7 +493,7 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
                     type="button"
                     onClick={() => handleOpenReschedule(booking)}
                     title="Reschedule"
-                    className="p-1.5 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <CalendarClock className="h-4 w-4" />
                   </button>
@@ -435,18 +504,18 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
                     type="button"
                     onClick={() => setCancellingBooking(booking)}
                     title="Cancel"
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <XCircle className="h-4 w-4" />
                   </button>
                 )}
 
-                {isAdmin && (
+                {(isAdmin || booking.employee_id === user?.id) && (
                   <button
                     type="button"
                     onClick={() => setDeletingBooking(booking)}
-                    title="Delete Permanently (Admin)"
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Delete Permanently"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -457,18 +526,37 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
               <>
                 <button
                   type="button"
+                  onClick={() => setOutcomeBooking(booking)}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                  title="Record Meeting Notes & Outcome"
+                >
+                  <FileText className="h-3.5 w-3.5 text-cyan-600" />
+                  <span>Outcome & Notes</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setDetailsBooking(booking)}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                 >
                   View Details
                 </button>
 
-                {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setEditingAttendeeBooking(booking)}
+                  title="Edit Attendee Details"
+                  className="p-1.5 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <UserCheck className="h-4 w-4" />
+                </button>
+
+                {(isAdmin || booking.employee_id === user?.id) && (
                   <button
                     type="button"
                     onClick={() => setDeletingBooking(booking)}
-                    title="Delete Permanently (Admin)"
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Delete Permanently"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -542,11 +630,17 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => refetch()}
-            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+            disabled={isManualRefreshing || isFetching}
+            onClick={handleManualRefresh}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-semibold shadow-2xs hover:border-slate-300 transition-all disabled:opacity-75 cursor-pointer"
             title="Refresh Meetings"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw
+              className={`h-3.5 w-3.5 text-cyan-600 ${
+                isManualRefreshing || isFetching ? 'animate-spin' : ''
+              }`}
+            />
+            <span>{isManualRefreshing || isFetching ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>
@@ -576,6 +670,17 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
                 : 'Historical appointment records, cancellation logs, attendee dossiers & audit trail'}
             </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setScheduleInternalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Schedule Internal Meeting</span>
+          </button>
         </div>
       </div>
 
@@ -751,13 +856,17 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
         onOpenReschedule={handleOpenReschedule}
         onOpenCancel={(b) => setCancellingBooking(b)}
         onOpenDelete={(b) => setDeletingBooking(b)}
-        isAdmin={isAdmin}
+        isAdmin={isAdmin || (detailsBooking && detailsBooking.employee_id === user?.id)}
       />
 
       <AdminDeleteBookingModal
         booking={deletingBooking}
         isOpen={!!deletingBooking}
         onClose={() => setDeletingBooking(null)}
+        onSuccess={() => {
+          refetch();
+          setDetailsBooking(null);
+        }}
       />
 
       {/* Cancel Modal */}
@@ -838,7 +947,7 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
             <form onSubmit={handleRescheduleSubmit} className="mt-4 space-y-4">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-0.5">
                 <div className="font-semibold text-slate-800">
-                  {reschedulingBooking.event_type_title || 'Meeting'} with{' '}
+                  {(Boolean(reschedulingBooking.event_type_id) ? 'Meeting with Kavach' : (reschedulingBooking.title || reschedulingBooking.event_type_title || 'Meeting'))} with{' '}
                   {reschedulingBooking.invitees?.[0]?.name || 'Invitee'}
                 </div>
                 <div className="text-slate-500 flex items-center gap-1.5">
@@ -963,6 +1072,29 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
           </div>
         </div>
       )}
+
+      {/* Schedule Internal Meeting Modal */}
+      <ScheduleInternalMeetingModal
+        isOpen={scheduleInternalOpen}
+        onClose={() => setScheduleInternalOpen(false)}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Meeting Outcome & Notes Modal */}
+      <MeetingOutcomeModal
+        booking={outcomeBooking}
+        isOpen={Boolean(outcomeBooking)}
+        onClose={() => setOutcomeBooking(null)}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Edit Attendee Modal */}
+      <EditAttendeeModal
+        booking={editingAttendeeBooking}
+        isOpen={Boolean(editingAttendeeBooking)}
+        onClose={() => setEditingAttendeeBooking(null)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 };

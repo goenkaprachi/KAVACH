@@ -30,6 +30,7 @@ class BookingCreateRequest(BaseModel):
     invitee_timezone: str = "UTC"
     custom_answers: Dict[str, Any] = {}
     notes: Optional[str] = None
+    location_choice: Optional[str] = None
 
 
 class CancelBookingRequest(BaseModel):
@@ -43,10 +44,22 @@ class RescheduleBookingRequest(BaseModel):
     cancellation_token: Optional[uuid.UUID] = None  # Needed if invitee reschedules without login
 
 
+class InternalBookingCreateRequest(BaseModel):
+    title: str
+    start_time: datetime
+    duration_minutes: int = 30
+    colleague_ids: List[uuid.UUID] = []
+    guest_emails: List[EmailStr] = []
+    meeting_provider: str = "jitsi"
+    location_detail: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class BookingResponse(BaseModel):
     id: uuid.UUID
     booking_reference: str
-    event_type_id: uuid.UUID
+    event_type_id: Optional[uuid.UUID] = None
+    title: Optional[str] = None
     employee_id: uuid.UUID
     start_time: datetime
     end_time: datetime
@@ -59,6 +72,14 @@ class BookingResponse(BaseModel):
     cancelled_by: Optional[str] = None
     rescheduled_from_id: Optional[uuid.UUID] = None
     is_rescheduled: bool = False
+    meeting_outcome: Optional[str] = None
+    meeting_notes: Optional[str] = None
+    followup_required: bool = False
+    followup_date: Optional[datetime] = None
+    followup_notes: Optional[str] = None
+    followup_status: str = "pending"
+    followup_priority: str = "medium"
+    outcome_updated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     invitees: List[InviteeResponse] = []
@@ -66,9 +87,36 @@ class BookingResponse(BaseModel):
     event_type_slug: Optional[str] = None
     employee_name: Optional[str] = None
     employee_username: Optional[str] = None
+    employee_email: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class UpdateBookingOutcomeRequest(BaseModel):
+    meeting_outcome: Optional[str] = None
+    meeting_notes: Optional[str] = None
+    followup_required: bool = False
+    followup_date: Optional[datetime] = None
+    followup_notes: Optional[str] = None
+    followup_priority: str = "medium"
+    followup_status: str = "pending"
+
+
+class UpdateFollowupStatusRequest(BaseModel):
+    followup_status: str
+
+
+class UpdateInviteeRequest(BaseModel):
+    invitee_id: Optional[uuid.UUID] = None
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    timezone: Optional[str] = None
+    notes: Optional[str] = None
+    custom_answers: Optional[Dict[str, Any]] = None
+
 
 
 class BookingAuditLogItem(BaseModel):

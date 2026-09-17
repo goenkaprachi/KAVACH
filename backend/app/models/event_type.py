@@ -17,8 +17,9 @@ class EventType(Base):
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
-    location_type: Mapped[str] = mapped_column(String(64), default="jitsi", nullable=False)  # jitsi | google_meet | zoom | microsoft_teams | whereby | phone | in_person | custom
+    location_type: Mapped[str] = mapped_column(String(64), default="jitsi", nullable=False)  # jitsi | google_meet | zoom | microsoft_teams | whereby | phone | in_person | custom | attendee_choice
     location_detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    allowed_locations: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, default=list, nullable=True)
     booking_type: Mapped[str] = mapped_column(String(64), default="one_on_one", nullable=False)  # one_on_one | round_robin | collective | group
     buffer_before_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     buffer_after_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -26,6 +27,10 @@ class EventType(Base):
     max_days_in_advance: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     max_bookings_per_day: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     group_capacity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    assigned_user_ids: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list, nullable=True)
+    price_amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    currency: Mapped[str] = mapped_column(String(8), default="INR", nullable=False)
+    payment_provider: Mapped[str] = mapped_column(String(32), default="none", nullable=False)  # none | razorpay | stripe
     custom_questions: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)

@@ -21,12 +21,30 @@ export const AdminDeleteBookingModal: React.FC<AdminDeleteBookingModalProps> = (
 
   const deleteMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      const res = await api.delete(`/admin/bookings/${bookingId}`);
-      return res.data;
+      try {
+        const res = await api.delete(`/bookings/${bookingId}`);
+        return res.data;
+      } catch (err: any) {
+        const res = await api.delete(`/admin/bookings/${bookingId}`);
+        return res.data;
+      }
     },
     onSuccess: () => {
+      if (booking?.id) {
+        queryClient.setQueriesData({ queryKey: ['bookings-all'] }, (old: any) =>
+          Array.isArray(old) ? old.filter((b: any) => b.id !== booking.id) : old
+        );
+        queryClient.setQueriesData({ queryKey: ['admin-bookings'] }, (old: any) =>
+          Array.isArray(old) ? old.filter((b: any) => b.id !== booking.id) : old
+        );
+        queryClient.setQueriesData({ queryKey: ['bookings'] }, (old: any) =>
+          Array.isArray(old) ? old.filter((b: any) => b.id !== booking.id) : old
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ['bookings-all'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
       setError(null);
       if (onSuccess) onSuccess();
       onClose();
@@ -44,6 +62,8 @@ export const AdminDeleteBookingModal: React.FC<AdminDeleteBookingModalProps> = (
   };
 
   const invitee = booking.invitees?.[0];
+  const isExternal = Boolean(booking.event_type_id);
+  const displayTitle = isExternal ? 'Meeting with Kavach' : (booking.title || booking.event_type_title || 'Meeting');
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -58,7 +78,7 @@ export const AdminDeleteBookingModal: React.FC<AdminDeleteBookingModalProps> = (
             </div>
             <div>
               <h3 className="font-bold text-slate-900 text-base">Permanently Delete Meeting</h3>
-              <p className="text-xs text-slate-500">Database hard deletion (Admin)</p>
+              <p className="text-xs text-slate-500">Permanent Hard Deletion</p>
             </div>
           </div>
           <button
@@ -91,7 +111,7 @@ export const AdminDeleteBookingModal: React.FC<AdminDeleteBookingModalProps> = (
             <div className="flex justify-between">
               <span className="text-slate-500">Event:</span>
               <span className="font-semibold text-slate-900">
-                {booking.event_type_title || 'Meeting'}
+                {displayTitle}
               </span>
             </div>
             <div className="flex justify-between">

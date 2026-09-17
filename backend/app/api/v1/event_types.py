@@ -61,6 +61,7 @@ async def create_event_type(
         duration_minutes=req.duration_minutes,
         location_type=req.location_type,
         location_detail=req.location_detail,
+        allowed_locations=req.allowed_locations or [],
         booking_type=req.booking_type,
         buffer_before_minutes=req.buffer_before_minutes,
         buffer_after_minutes=req.buffer_after_minutes,
@@ -68,14 +69,41 @@ async def create_event_type(
         max_days_in_advance=req.max_days_in_advance,
         max_bookings_per_day=req.max_bookings_per_day,
         group_capacity=req.group_capacity,
+        assigned_user_ids=req.assigned_user_ids or [],
         custom_questions=req.custom_questions,
         is_active=req.is_active,
         schedule_id=req.schedule_id,
+        price_amount=req.price_amount,
+        currency=req.currency or "INR",
+        payment_provider=req.payment_provider or "none",
     )
     db.add(event_type)
     await db.commit()
     await db.refresh(event_type)
     return event_type
+
+
+@router.get("/collaborators")
+async def get_collaborators(
+    current_user: User = Depends(require_employee),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns active team members / colleagues that can be assigned to Round-Robin or Collective events.
+    """
+    stmt = select(User).where(User.status == "active").order_by(User.name.asc())
+    res = await db.execute(stmt)
+    users = list(res.scalars().all())
+    return [
+        {
+            "id": str(u.id),
+            "name": u.name,
+            "email": u.email,
+            "username": u.username,
+            "role": u.role,
+        }
+        for u in users
+    ]
 
 
 @router.patch("/{event_type_id}", response_model=EventTypeResponse)
@@ -171,11 +199,23 @@ async def get_public_event_type(
         duration_minutes=event_type.duration_minutes,
         location_type=event_type.location_type,
         location_detail=event_type.location_detail,
+        allowed_locations=event_type.allowed_locations or [],
         custom_questions=event_type.custom_questions,
         owner_name=user.name,
         owner_username=user.username,
         owner_avatar_url=user.avatar_url,
         owner_timezone=user.timezone,
+        min_notice_minutes=event_type.min_notice_minutes,
+        max_days_in_advance=event_type.max_days_in_advance,
+        buffer_before_minutes=event_type.buffer_before_minutes,
+        buffer_after_minutes=event_type.buffer_after_minutes,
+        max_bookings_per_day=event_type.max_bookings_per_day,
+        booking_type=event_type.booking_type or "one_on_one",
+        group_capacity=event_type.group_capacity,
+        assigned_user_ids=event_type.assigned_user_ids or [],
+        price_amount=event_type.price_amount,
+        currency=event_type.currency or "INR",
+        payment_provider=event_type.payment_provider or "none",
     )
 
 

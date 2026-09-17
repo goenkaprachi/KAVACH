@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { getAttendeePhone } from '../../lib/utils';
 import { format, parseISO, isPast } from 'date-fns';
 import { StatusBadge } from '../../components/StatusBadge';
 import {
@@ -20,8 +21,14 @@ import {
   XCircle,
   Trash2,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  FileText,
+  BellRing,
+  Edit,
+  UserCheck,
 } from 'lucide-react';
+import { MeetingOutcomeModal } from './MeetingOutcomeModal';
+import { EditAttendeeModal } from './EditAttendeeModal';
 
 interface MeetingDetailsModalProps {
   booking: any | null;
@@ -32,28 +39,6 @@ interface MeetingDetailsModalProps {
   onOpenDelete?: (booking: any) => void;
   isAdmin?: boolean;
 }
-
-export const getAttendeePhone = (invitee: any): string | null => {
-  if (!invitee?.custom_answers) return null;
-  const answers = invitee.custom_answers;
-  const phoneKeys = [
-    'contact no.',
-    'contact number',
-    'phone',
-    'phone number',
-    'mobile',
-    'mobile number',
-    'contact',
-    'telephone',
-    'cell',
-  ];
-  for (const [key, val] of Object.entries(answers)) {
-    if (phoneKeys.includes(key.toLowerCase().trim()) && val) {
-      return String(val).trim();
-    }
-  }
-  return null;
-};
 
 export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
   booking,
@@ -66,6 +51,13 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
 }) => {
   const [copiedRef, setCopiedRef] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
+  const [editAttendeeOpen, setEditAttendeeOpen] = useState(false);
+  const [activeBooking, setActiveBooking] = useState<any>(booking);
+
+  useEffect(() => {
+    setActiveBooking(booking);
+  }, [booking]);
 
   // Fetch change logs / audit trail for this specific booking
   const { data: logs = [], isLoading: loadingLogs } = useQuery({
@@ -80,9 +72,10 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
 
   if (!isOpen || !booking) return null;
 
-  const startDt = parseISO(booking.start_time);
-  const endDt = parseISO(booking.end_time);
-  const invitee = booking.invitees?.[0];
+  const currentBooking = activeBooking || booking;
+  const startDt = parseISO(currentBooking.start_time);
+  const endDt = parseISO(currentBooking.end_time);
+  const invitee = currentBooking.invitees?.[0];
   const phone = getAttendeePhone(invitee);
 
   const copyToClipboard = (text: string, type: 'ref' | 'link') => {
@@ -129,7 +122,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
           <div>
             <div className="flex items-center space-x-2.5">
               <h2 className="text-lg font-bold text-slate-900">
-                {booking.event_type_title || 'Meeting Details'}
+                {Boolean(booking.event_type_id) ? 'Meeting with Kavach' : (booking.title || booking.event_type_title || 'Meeting Details')}
               </h2>
               <StatusBadge
                 status={
@@ -358,10 +351,21 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
 
             {/* Attendee Details Card */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
-                <User className="h-3.5 w-3.5 text-cyan-600" />
-                <span>Attendee Information</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
+                  <User className="h-3.5 w-3.5 text-cyan-600" />
+                  <span>Attendee Information</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setEditAttendeeOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-cyan-700 hover:text-cyan-800 bg-cyan-50 hover:bg-cyan-100/80 px-2.5 py-1 rounded-lg border border-cyan-200/80 transition-colors cursor-pointer"
+                  title="Edit attendee name, email, phone, or company"
+                >
+                  <Edit className="h-3 w-3" />
+                  <span>Edit Details</span>
+                </button>
+              </div>
 
               {invitee ? (
                 <div className="space-y-2 text-xs">
@@ -435,6 +439,78 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Meeting Outcome, Free-Text Notes & Follow-up Card */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                <FileText className="h-4 w-4 text-cyan-600" />
+                <span>Meeting Outcome, Notes & Follow-up</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setOutcomeModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 shadow-2xs transition-colors cursor-pointer"
+              >
+                <Edit className="h-3 w-3 text-cyan-600" />
+                <span>{booking.meeting_outcome || booking.meeting_notes ? 'Edit Outcome & Notes' : 'Record Outcome & Notes'}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-slate-500 block text-[11px] font-semibold mb-1">Outcome Status</span>
+                {booking.meeting_outcome ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-200 capitalize">
+                    {booking.meeting_outcome.replace(/_/g, ' ')}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">No outcome recorded yet</span>
+                )}
+              </div>
+
+              <div>
+                <span className="text-slate-500 block text-[11px] font-semibold mb-1">Follow-up Commitment</span>
+                {booking.followup_required ? (
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                      booking.followup_status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                        : 'bg-amber-100 text-amber-800 border-amber-200'
+                    }`}>
+                      <BellRing className="h-3 w-3" />
+                      <span>{booking.followup_status === 'completed' ? 'Follow-up Completed' : 'Follow-up Required'}</span>
+                    </span>
+                    {booking.followup_date && (
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Due: {format(parseISO(booking.followup_date), 'dd MMM yyyy')}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-slate-400 italic">No follow-up required</span>
+                )}
+              </div>
+            </div>
+
+            {booking.meeting_notes && (
+              <div className="pt-2 border-t border-slate-200">
+                <span className="text-slate-500 block text-[11px] font-semibold mb-1">Meeting Notes:</span>
+                <div className="bg-white p-3 rounded-xl border border-slate-200 text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-sans">
+                  {booking.meeting_notes}
+                </div>
+              </div>
+            )}
+
+            {booking.followup_notes && (
+              <div className="pt-2 border-t border-slate-200">
+                <span className="text-slate-500 block text-[11px] font-semibold mb-1">Follow-up Action Items:</span>
+                <div className="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200 text-xs text-amber-900 whitespace-pre-wrap">
+                  {booking.followup_notes}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Change Logs / Audit Trail */}
@@ -544,6 +620,24 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
           </button>
         </div>
       </div>
+
+      <MeetingOutcomeModal
+        booking={currentBooking}
+        isOpen={outcomeModalOpen}
+        onClose={() => setOutcomeModalOpen(false)}
+      />
+
+      {editAttendeeOpen && (
+        <EditAttendeeModal
+          booking={currentBooking}
+          invitee={invitee}
+          isOpen={editAttendeeOpen}
+          onClose={() => setEditAttendeeOpen(false)}
+          onSuccess={(updated) => {
+            setActiveBooking(updated);
+          }}
+        />
+      )}
     </div>
   );
 };

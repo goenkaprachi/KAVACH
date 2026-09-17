@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
 import { useAuthStore } from '../lib/store';
 import {
   Calendar,
@@ -18,6 +20,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   History,
+  User,
+  Mail,
+  BellRing,
+  GitBranch,
+  BarChart3,
+  Webhook as WebhookIcon,
+  Palette,
 } from 'lucide-react';
 
 const KAVACH_SIDEBAR_COLLAPSED_KEY = 'kavach_sidebar_collapsed_categories_v1';
@@ -25,7 +34,7 @@ const KAVACH_SIDEBAR_COLLAPSED_KEY = 'kavach_sidebar_collapsed_categories_v1';
 export interface NavItem {
   to: string;
   label: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
   badge?: string;
   badgeColor?: string;
@@ -45,8 +54,13 @@ const navCategories: NavCategory[] = [
       { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
       { to: '/meetings/upcoming', label: 'Upcoming Meetings', icon: Calendar },
       { to: '/meetings/past', label: 'Past Meetings', icon: History },
+      { to: '/reminders', label: 'Follow-ups & Reminders', icon: BellRing },
       { to: '/event-types', label: 'Event Types', icon: Layers },
+      { to: '/routing-forms', label: 'Routing Forms', icon: GitBranch },
+      { to: '/analytics', label: 'Analytics & Intelligence', icon: BarChart3 },
+      { to: '/webhooks', label: 'Webhooks & API', icon: WebhookIcon },
       { to: '/availability', label: 'Availability', icon: Clock },
+      { to: '/profile', label: 'My Profile', icon: User },
     ],
   },
   {
@@ -56,6 +70,8 @@ const navCategories: NavCategory[] = [
       { to: '/admin/employees', label: 'Employees', icon: Users, adminOnly: true },
       { to: '/admin/bookings', label: 'Org Bookings', icon: ShieldCheck, adminOnly: true },
       { to: '/admin/integrations', label: 'Integrations', icon: Video, adminOnly: true },
+      { to: '/admin/email-templates', label: 'Email Templates', icon: Mail, adminOnly: true },
+      { to: '/admin/branding', label: 'Custom Branding', icon: Palette, adminOnly: true },
     ],
   },
 ];
@@ -122,10 +138,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate('/login');
   };
 
+  const { data: pendingReminders = [] } = useQuery({
+    queryKey: ['reminders-count'],
+    queryFn: async () => {
+      const res = await api.get('/bookings/reminders/list', { params: { status: 'pending' } });
+      return res.data;
+    },
+    refetchInterval: 30000,
+  });
+
   const visibleCategories = navCategories
     .map((cat) => ({
       ...cat,
-      items: cat.items.filter((item) => !item.adminOnly || user.role === 'admin'),
+      items: cat.items
+        .filter((item) => !item.adminOnly || user.role === 'admin')
+        .map((item) => {
+          if (item.to === '/reminders' && pendingReminders.length > 0) {
+            return {
+              ...item,
+              badge: String(pendingReminders.length),
+              badgeColor: 'bg-rose-100 text-rose-700 border border-rose-200',
+            };
+          }
+          return item;
+        }),
     }))
     .filter((cat) => cat.items.length > 0);
 

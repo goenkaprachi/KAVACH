@@ -33,6 +33,9 @@ class Settings(BaseSettings):
 
     # External Provider Defaults
     JITSI_BASE_URL: str = "https://meet.jit.si"
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+    GOOGLE_REDIRECT_URI: str = "http://localhost:5174/auth/google/callback"
 
     # Email
     BREVO_API_KEY: str | None = None

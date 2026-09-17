@@ -31,3 +31,25 @@ export const COMMON_TIMEZONES = [
   "Asia/Tokyo",
   "Australia/Sydney",
 ];
+
+export function getAttendeePhone(invitee: any): string | null {
+  if (!invitee?.custom_answers) return null;
+  const answers = invitee.custom_answers;
+  const phoneKeys = [
+    'contact no.',
+    'contact number',
+    'phone',
+    'phone number',
+    'mobile',
+    'mobile number',
+    'contact',
+    'telephone',
+    'cell',
+  ];
+  for (const [key, val] of Object.entries(answers)) {
+    if (phoneKeys.includes(key.toLowerCase().trim()) && val) {
+      return String(val).trim();
+    }
+  }
+  return null;
+}

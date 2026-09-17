@@ -45,4 +45,14 @@ async def get_available_integrations(
                 "is_default": False,
             })
 
+    # If employee has connected their local Google account, enable Google Meet
+    has_google = any(p["provider"] == "google_meet" for p in output)
+    if not has_google and getattr(current_user, "google_email", None):
+        output.append({
+            "provider": "google_meet",
+            "display_name": f"Google Meet ({current_user.google_email})",
+            "is_default": False,
+            "connected_account": current_user.google_email,
+        })
+
     return output

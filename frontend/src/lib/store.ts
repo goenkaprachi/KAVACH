@@ -9,6 +9,15 @@ export interface User {
   timezone: string;
   username: string;
   avatar_url?: string;
+  phone?: string;
+  job_title?: string;
+  department?: string;
+  office_location?: string;
+  employee_code?: string;
+  bio?: string;
+  google_email?: string;
+  google_meet_url?: string;
+  has_google_token?: boolean;
 }
 
 interface AuthState {

@@ -18,8 +18,10 @@ import {
   ShieldCheck,
   Search,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
-import { MeetingDetailsModal, getAttendeePhone } from '../bookings/MeetingDetailsModal';
+import { MeetingDetailsModal } from '../bookings/MeetingDetailsModal';
+import { getAttendeePhone } from '../../lib/utils';
 import { AdminDeleteBookingModal } from '../bookings/AdminDeleteBookingModal';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Card } from '../../components/Card';
@@ -31,8 +33,9 @@ export const AdminBookings: React.FC = () => {
   const [detailsBooking, setDetailsBooking] = useState<any | null>(null);
   const [deletingBooking, setDeletingBooking] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: bookings = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['admin-bookings', statusFilter, providerFilter],
     queryFn: async () => {
       const res = await api.get('/admin/bookings', {
@@ -41,6 +44,17 @@ export const AdminBookings: React.FC = () => {
       return res.data;
     },
   });
+
+  const handleManualRefresh = async () => {
+    setIsManualRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setTimeout(() => {
+        setIsManualRefreshing(false);
+      }, 700);
+    }
+  };
 
   const handleCopyId = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -138,6 +152,20 @@ export const AdminBookings: React.FC = () => {
                 <span>Reset</span>
               </button>
             )}
+            <button
+              type="button"
+              disabled={isManualRefreshing || isFetching}
+              onClick={handleManualRefresh}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-semibold shadow-2xs hover:border-slate-300 transition-all disabled:opacity-75 cursor-pointer ml-auto sm:ml-0"
+              title="Refresh Meetings"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-cyan-600 ${
+                  isManualRefreshing || isFetching ? 'animate-spin' : ''
+                }`}
+              />
+              <span>{isManualRefreshing || isFetching ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
           </div>
         </div>
       </Card>
@@ -231,7 +259,7 @@ export const AdminBookings: React.FC = () => {
                       {/* COL 4: Event Type & ID */}
                       <td className="px-5 py-4 align-middle whitespace-nowrap">
                         <div className="text-xs font-semibold text-slate-800 truncate">
-                          {b.event_type_title || 'Meeting'}
+                          {Boolean(b.event_type_id) ? 'Meeting with Kavach' : (b.title || b.event_type_title || 'Meeting')}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
                           <span className="font-mono text-[11px] text-slate-400">
@@ -327,6 +355,10 @@ export const AdminBookings: React.FC = () => {
         booking={deletingBooking}
         isOpen={!!deletingBooking}
         onClose={() => setDeletingBooking(null)}
+        onSuccess={() => {
+          refetch();
+          setDetailsBooking(null);
+        }}
       />
     </div>
   );
