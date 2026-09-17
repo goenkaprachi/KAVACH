@@ -12,9 +12,11 @@ from app.core.database import get_db
 from app.models.user import User
 from app.models.event_type import EventType
 from app.models.booking import Booking, Invitee
+from app.models.notification import AuditLog
 from app.schemas.booking import (
     BookingCreateRequest,
     BookingResponse,
+    BookingAuditLogItem,
     InviteeResponse,
     CancelBookingRequest,
     RescheduleBookingRequest,
@@ -174,6 +176,24 @@ async def create_booking(
     )
     db.add(invitee)
 
+    # Record creation audit log
+    create_log = AuditLog(
+        actor_user_id=None,
+        action="booking.created",
+        entity_type="booking",
+        entity_id=new_booking.id,
+        metadata_={
+            "actor_type": "invitee",
+            "actor_name": req.invitee_name,
+            "invitee_email": req.invitee_email.lower().strip(),
+            "invitee_timezone": req.invitee_timezone,
+            "event_type_title": event_type.title,
+            "start_time": slot_start_utc.isoformat(),
+            "end_time": slot_end_utc.isoformat(),
+        },
+    )
+    db.add(create_log)
+
     try:
         await db.commit()
     except IntegrityError:
@@ -282,6 +302,21 @@ async def cancel_booking(
     booking.cancellation_reason = req.reason
     booking.cancelled_by = cancelled_by
 
+    # Record cancellation audit log
+    cancel_log = AuditLog(
+        actor_user_id=current_user.id if current_user else None,
+        action="booking.cancelled",
+        entity_type="booking",
+        entity_id=booking.id,
+        metadata_={
+            "actor_type": cancelled_by or "user",
+            "actor_name": current_user.name if current_user else (booking.invitees[0].name if booking.invitees else "Invitee"),
+            "reason": req.reason or "No reason provided",
+            "cancelled_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    db.add(cancel_log)
+
     # Keep references before commit
     saved_invitees = list(booking.invitees)
     event_title = booking.event_type.title if booking.event_type else None
@@ -311,6 +346,7 @@ async def reschedule_booking(
     stmt = select(Booking).where(Booking.id == booking_id).options(
         selectinload(Booking.invitees),
         selectinload(Booking.event_type).selectinload(EventType.owner),
+        selectinload(Booking.employee),
     )
     res = await db.execute(stmt)
     old_booking = res.scalar_one_or_none()
@@ -320,64 +356,66 @@ async def reschedule_booking(
 
     if current_user and (current_user.id == old_booking.employee_id or current_user.role == "admin"):
         actor = "employee"
+        actor_name = current_user.name
     elif req.cancellation_token:
         inv = next((i for i in old_booking.invitees if i.cancellation_token == req.cancellation_token), None)
         if not inv:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
         actor = "invitee"
+        actor_name = inv.name
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication or token required")
 
     event_type = old_booking.event_type
-    employee = event_type.owner
+    employee = event_type.owner if event_type else old_booking.employee
 
-    # Cancel old booking with reason
+    old_start_utc = old_booking.start_time
+    old_end_utc = old_booking.end_time
     clean_reason = req.reason.strip() if req.reason and req.reason.strip() else None
-    old_booking.status = "cancelled"
-    old_booking.cancellation_reason = f"Rescheduled: {clean_reason}" if clean_reason else "Rescheduled to a new time"
-    old_booking.cancelled_by = actor
 
-    # Verify new slot
+    # Calculate new slot times
+    duration = event_type.duration_minutes if event_type else int((old_end_utc - old_start_utc).total_seconds() / 60)
     new_slot_start_utc = req.new_start_time.astimezone(timezone.utc)
-    new_slot_end_utc = new_slot_start_utc + timedelta(minutes=event_type.duration_minutes)
+    new_slot_end_utc = new_slot_start_utc + timedelta(minutes=duration)
 
     meeting_details = await meeting_hub.create_for_booking(
-        booking_id=str(uuid.uuid4()),
-        title=event_type.title,
+        booking_id=str(old_booking.id),
+        title=event_type.title if event_type else "Rescheduled Meeting",
         start_time=new_slot_start_utc,
-        duration_minutes=event_type.duration_minutes,
-        requested_provider=event_type.location_type,
-        location_detail=event_type.location_detail,
+        duration_minutes=duration,
+        requested_provider=event_type.location_type if event_type else old_booking.meeting_provider,
+        location_detail=event_type.location_detail if event_type else None,
         db=db,
     )
 
-    new_booking = Booking(
-        event_type_id=event_type.id,
-        employee_id=employee.id,
-        start_time=new_slot_start_utc,
-        end_time=new_slot_end_utc,
-        status="confirmed",
-        meeting_provider=meeting_details.provider,
-        meeting_join_url=meeting_details.join_url,
-        meeting_host_url=meeting_details.host_url,
-        external_meeting_ref=meeting_details.external_ref,
-        rescheduled_from_id=old_booking.id,
-    )
-    db.add(new_booking)
-    await db.flush()
+    # Maintain single record for the meeting: update old_booking in-place
+    old_booking.start_time = new_slot_start_utc
+    old_booking.end_time = new_slot_end_utc
+    old_booking.status = "confirmed"
+    old_booking.meeting_provider = meeting_details.provider
+    old_booking.meeting_join_url = meeting_details.join_url
+    old_booking.meeting_host_url = meeting_details.host_url
+    old_booking.external_meeting_ref = meeting_details.external_ref
+    old_booking.cancellation_reason = None
+    old_booking.cancelled_by = None
 
-    # Re-associate invitees
-    new_invitees = []
-    for old_inv in old_booking.invitees:
-        new_inv = Invitee(
-            booking_id=new_booking.id,
-            name=old_inv.name,
-            email=old_inv.email,
-            timezone=old_inv.timezone,
-            custom_answers=old_inv.custom_answers,
-        )
-        db.add(new_inv)
-        new_invitees.append(new_inv)
+    # Insert audit log for rescheduling
+    reschedule_log = AuditLog(
+        actor_user_id=current_user.id if current_user else None,
+        action="booking.rescheduled",
+        entity_type="booking",
+        entity_id=old_booking.id,
+        metadata_={
+            "actor_type": actor,
+            "actor_name": actor_name,
+            "reason": clean_reason or "Rescheduled to a new time",
+            "previous_start_time": old_start_utc.isoformat(),
+            "previous_end_time": old_end_utc.isoformat(),
+            "new_start_time": new_slot_start_utc.isoformat(),
+            "new_end_time": new_slot_end_utc.isoformat(),
+        },
+    )
+    db.add(reschedule_log)
 
     try:
         await db.commit()
@@ -386,12 +424,15 @@ async def reschedule_booking(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="New slot is conflicting or occupied.")
 
     # Dispatch reschedule notification email
-    if new_invitees:
+    if old_booking.invitees:
         try:
+            class SnapshotBooking:
+                start_time = old_start_utc
+                end_time = old_end_utc
             await email_service.send_reschedule_notification(
-                old_booking=old_booking,
-                new_booking=new_booking,
-                invitee=new_invitees[0],
+                old_booking=SnapshotBooking(),
+                new_booking=old_booking,
+                invitee=old_booking.invitees[0],
                 event_type=event_type,
                 employee=employee,
                 reason=clean_reason,
@@ -401,10 +442,122 @@ async def reschedule_booking(
             pass
 
     return build_booking_response(
-        b=new_booking,
-        invitees=new_invitees,
-        event_type_title=event_type.title,
-        event_type_slug=event_type.slug,
-        employee_name=employee.name,
-        employee_username=employee.username,
+        b=old_booking,
+        invitees=list(old_booking.invitees) if hasattr(old_booking, "invitees") else [],
+        event_type_title=event_type.title if event_type else None,
+        event_type_slug=event_type.slug if event_type else None,
+        employee_name=employee.name if employee else None,
+        employee_username=employee.username if employee else None,
     )
+
+
+@router.get("/{booking_id}/logs", response_model=List[BookingAuditLogItem])
+async def get_booking_audit_logs(
+    booking_id: uuid.UUID,
+    cancellation_token: Optional[uuid.UUID] = Query(default=None),
+    current_user: Optional[User] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Booking).where(Booking.id == booking_id).options(
+        selectinload(Booking.invitees),
+        selectinload(Booking.event_type),
+        selectinload(Booking.employee),
+    )
+    res = await db.execute(stmt)
+    booking = res.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+
+    # Authorization check
+    is_allowed = False
+    if current_user:
+        if current_user.role == "admin" or current_user.id == booking.employee_id:
+            is_allowed = True
+    if not is_allowed and cancellation_token:
+        if any(i.cancellation_token == cancellation_token for i in booking.invitees):
+            is_allowed = True
+
+    if not is_allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    # Query audit logs
+    log_stmt = select(AuditLog).where(
+        AuditLog.entity_type == "booking",
+        AuditLog.entity_id == booking_id
+    ).order_by(AuditLog.created_at.asc())
+    log_res = await db.execute(log_stmt)
+    raw_logs = log_res.scalars().all()
+
+    items: List[BookingAuditLogItem] = []
+    has_create = False
+    has_cancel = False
+
+    for l in raw_logs:
+        meta = l.metadata_ or {}
+        actor_type = meta.get("actor_type") or meta.get("rescheduled_by") or "system"
+        actor_name = meta.get("actor_name")
+
+        if l.action == "booking.created":
+            has_create = True
+            desc = f"Meeting booked by {actor_name or 'attendee'}"
+            if meta.get("event_type_title"):
+                desc += f" under {meta.get('event_type_title')}"
+        elif l.action == "booking.rescheduled":
+            reason = meta.get("reason")
+            desc = "Meeting rescheduled to a new time"
+            if reason:
+                desc += f": {reason}"
+        elif l.action == "booking.cancelled":
+            has_cancel = True
+            reason = meta.get("reason")
+            desc = f"Meeting cancelled by {actor_type}"
+            if reason:
+                desc += f". Reason: {reason}"
+        else:
+            desc = l.action.replace(".", " ").title()
+
+        items.append(
+            BookingAuditLogItem(
+                id=l.id,
+                action=l.action,
+                actor_type=actor_type,
+                actor_name=actor_name,
+                description=desc,
+                metadata=meta,
+                created_at=l.created_at,
+            )
+        )
+
+    # If no creation log in table (for bookings prior to audit logging), synthesize initial log
+    if not has_create:
+        invitee_name = booking.invitees[0].name if booking.invitees else "Attendee"
+        event_title = booking.event_type.title if booking.event_type else "Meeting"
+        items.insert(
+            0,
+            BookingAuditLogItem(
+                id=uuid.uuid4(),
+                action="booking.created",
+                actor_type="invitee",
+                actor_name=invitee_name,
+                description=f"Meeting scheduled under {event_title}",
+                metadata={"start_time": booking.start_time.isoformat()},
+                created_at=booking.created_at,
+            )
+        )
+
+    # If booking is cancelled but no cancellation log exists, synthesize
+    if booking.status == "cancelled" and not has_cancel:
+        items.append(
+            BookingAuditLogItem(
+                id=uuid.uuid4(),
+                action="booking.cancelled",
+                actor_type=booking.cancelled_by or "system",
+                actor_name=booking.cancelled_by or "Unknown",
+                description=f"Meeting cancelled. Reason: {booking.cancellation_reason or 'No reason provided'}",
+                metadata={"reason": booking.cancellation_reason},
+                created_at=booking.updated_at or booking.created_at,
+            )
+        )
+
+    return items
+

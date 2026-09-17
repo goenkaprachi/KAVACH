@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { useAuthStore } from '../../lib/store';
 import { format, parseISO } from 'date-fns';
 import { 
   Calendar, 
@@ -14,14 +15,33 @@ import {
   X,
   CalendarClock,
   Building,
-  Phone
+  Phone,
+  Copy,
+  Check,
+  History,
+  Trash2,
+  Info
 } from 'lucide-react';
+import { MeetingDetailsModal, getAttendeePhone } from './MeetingDetailsModal';
+import { AdminDeleteBookingModal } from './AdminDeleteBookingModal';
 
 export const EmployeeBookings: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [cancellingBooking, setCancellingBooking] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+
+  // Details & Logs Modal State
+  const [detailsBooking, setDetailsBooking] = useState<any | null>(null);
+
+  // Admin Delete Modal State
+  const [deletingBooking, setDeletingBooking] = useState<any | null>(null);
+
+  // Quick ID Copy feedback state
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Reschedule State
   const [reschedulingBooking, setReschedulingBooking] = useState<any | null>(null);
@@ -150,37 +170,49 @@ export const EmployeeBookings: React.FC = () => {
     });
   };
 
+  const handleCopyId = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Filter out legacy duplicate cancelled records from before single-record update was deployed
+  const displayBookings = bookings.filter((b: any) => {
+    return !(b.status === 'cancelled' && b.cancellation_reason?.startsWith('Rescheduled'));
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Your Meetings</h1>
           <p className="text-sm text-slate-500">
-            View upcoming schedule and past client consultations
+            View upcoming schedule, attendee details, and complete meeting change history
           </p>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-lg">
+        <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
           <button
             onClick={() => setTab('upcoming')}
-            className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               tab === 'upcoming'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Upcoming
+            Upcoming Meetings
           </button>
           <button
             onClick={() => setTab('past')}
-            className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               tab === 'past'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Past
+            Past Meetings
           </button>
         </div>
       </div>
@@ -188,137 +220,181 @@ export const EmployeeBookings: React.FC = () => {
       {isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-28 bg-slate-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-32 bg-slate-100 rounded-2xl animate-pulse" />
           ))}
         </div>
-      ) : bookings.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
+      ) : displayBookings.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
           <Calendar className="h-12 w-12 text-slate-400 mx-auto" />
           <h3 className="mt-4 text-base font-semibold text-slate-900">
             No {tab} meetings found
           </h3>
           <p className="mt-1 text-sm text-slate-500">
             {tab === 'upcoming'
-              ? 'When clients book via your links, they will appear here.'
-              : 'Past completed meetings will be cataloged here.'}
+              ? 'When clients schedule consultations via your public booking link, they will appear here.'
+              : 'Past consultations and meeting logs will be archived here.'}
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {bookings.map((booking: any) => {
+          {displayBookings.map((booking: any) => {
             const startDt = parseISO(booking.start_time);
             const endDt = parseISO(booking.end_time);
             const invitee = booking.invitees?.[0];
+            const phone = getAttendeePhone(invitee);
+            const refId = booking.booking_reference || booking.id.slice(0, 8);
+            const isCopied = copiedId === refId;
 
             return (
               <div
                 key={booking.id}
-                className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-center justify-between gap-4"
+                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-5"
               >
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <span className="font-bold text-slate-900 text-base">
+                {/* Meeting & Attendee Information */}
+                <div className="space-y-3 flex-1 min-w-0">
+                  {/* Top Bar: Event Type Title, Unique Meeting ID, Status */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsBooking(booking)}
+                      className="font-bold text-slate-900 text-base hover:text-blue-600 text-left transition-colors truncate"
+                      title="Click to view full details & change logs"
+                    >
                       {booking.event_type_title || 'Meeting'}
-                    </span>
+                    </button>
+
+                    {/* Unique Meeting ID Chip with Copy */}
+                    <div className="inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200/80 px-2.5 py-1 rounded-md text-[11px] font-mono text-slate-700 transition-colors border border-slate-200/60">
+                      <span className="text-slate-400 font-sans font-medium">ID:</span>
+                      <span className="font-semibold text-slate-800">{refId}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyId(e, refId)}
+                        className="text-slate-400 hover:text-blue-600 transition-colors ml-0.5"
+                        title="Copy Meeting ID"
+                      >
+                        {isCopied ? (
+                          <Check className="h-3 w-3 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Status Badge */}
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${
                         booking.status === 'confirmed'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : booking.cancellation_reason?.startsWith('Rescheduled')
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : 'bg-red-50 text-red-700'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
                       }`}
                     >
-                      {booking.status === 'cancelled' && booking.cancellation_reason?.startsWith('Rescheduled')
-                        ? 'Rescheduled'
-                        : booking.status}
+                      {booking.status}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-600">
-                    <div className="flex items-center space-x-1 font-medium text-slate-800">
+                  {/* Date, Time, and Host Details */}
+                  <div className="flex flex-wrap items-center gap-y-1.5 gap-x-4 text-xs text-slate-600">
+                    <div className="flex items-center space-x-1.5 font-semibold text-slate-800 bg-blue-50/70 border border-blue-100/80 px-2.5 py-1 rounded-lg">
                       <Calendar className="h-3.5 w-3.5 text-blue-600" />
                       <span>{format(startDt, 'EEE, dd MMM yyyy')}</span>
                     </div>
 
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-1.5 font-medium text-slate-700">
                       <Clock className="h-3.5 w-3.5 text-slate-400" />
                       <span>
                         {format(startDt, 'hh:mm a')} – {format(endDt, 'hh:mm a')}
                       </span>
                     </div>
 
-                    {invitee && (
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-1.5 text-slate-800 font-medium">
-                          <User className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
-                          <span>{invitee.name}</span>
-                          <span className="text-slate-400 font-normal">({invitee.email})</span>
-                        </div>
-                        {invitee.custom_answers && (
-                          <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-600">
-                            {invitee.custom_answers['Company name'] && (
-                              <span className="inline-flex items-center space-x-1 bg-slate-100 px-2 py-0.5 rounded text-slate-700 border border-slate-200">
-                                <Building className="h-3 w-3 text-slate-400" />
-                                <span>{invitee.custom_answers['Company name']}</span>
-                              </span>
-                            )}
-                            {invitee.custom_answers['Contact No.'] && (
-                              <span className="inline-flex items-center space-x-1 bg-slate-100 px-2 py-0.5 rounded text-slate-700 border border-slate-200">
-                                <Phone className="h-3 w-3 text-slate-400" />
-                                <span>{invitee.custom_answers['Contact No.']}</span>
-                              </span>
-                            )}
-                            {Object.entries(invitee.custom_answers)
-                              .filter(([k]) => !['Company name', 'Contact No.'].includes(k))
-                              .map(([k, v]) => (
-                                <span key={k} className="bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600">
-                                  <strong>{k}:</strong> {String(v)}
-                                </span>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex items-center space-x-1.5 text-slate-500">
+                      <Video className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="capitalize">{booking.meeting_provider?.replace('_', ' ') || 'Online'}</span>
+                    </div>
                   </div>
 
+                  {/* Attendee Details: Name, Email, Contact Phone, Company */}
+                  {invitee && (
+                    <div className="pt-1 border-t border-slate-100/80 flex flex-wrap items-center gap-y-1.5 gap-x-4 text-xs">
+                      <div className="flex items-center space-x-1.5 font-semibold text-slate-900">
+                        <User className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
+                        <span>{invitee.name}</span>
+                      </div>
+
+                      <a
+                        href={`mailto:${invitee.email}`}
+                        className="flex items-center space-x-1 text-slate-600 hover:text-blue-600 transition-colors"
+                      >
+                        <Mail className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                        <span>{invitee.email}</span>
+                      </a>
+
+                      {/* Attendee Contact Phone Number */}
+                      {phone && (
+                        <a
+                          href={`tel:${phone}`}
+                          className="inline-flex items-center space-x-1 font-semibold text-emerald-700 bg-emerald-50/80 border border-emerald-200/80 px-2 py-0.5 rounded text-[11px] hover:bg-emerald-100 transition-colors"
+                          title="Click to call attendee"
+                        >
+                          <Phone className="h-3 w-3 text-emerald-600 flex-shrink-0" />
+                          <span>{phone}</span>
+                        </a>
+                      )}
+
+                      {invitee.custom_answers?.['Company name'] && (
+                        <div className="inline-flex items-center space-x-1 text-slate-600 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                          <Building className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                          <span>{invitee.custom_answers['Company name']}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cancellation Reason note if cancelled */}
                   {booking.cancellation_reason && (
-                    <div className={`text-xs p-2.5 rounded-lg flex items-start space-x-2 mt-2 ${
-                      booking.cancellation_reason.startsWith('Rescheduled')
-                        ? 'bg-amber-50/80 border border-amber-200 text-amber-900'
-                        : 'bg-red-50/80 border border-red-200 text-red-700'
-                    }`}>
-                      <AlertCircle className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
-                        booking.cancellation_reason.startsWith('Rescheduled') ? 'text-amber-600' : 'text-red-500'
-                      }`} />
+                    <div className="text-xs p-2.5 rounded-xl flex items-start space-x-2 bg-red-50/80 border border-red-200 text-red-700 mt-1">
+                      <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-500" />
                       <div>
-                        <span className="font-bold">
-                          {booking.cancellation_reason.startsWith('Rescheduled') ? 'Rescheduled Reason:' : 'Cancellation Reason:'}
-                        </span>{' '}
+                        <span className="font-bold">Cancellation Reason:</span>{' '}
                         {booking.cancellation_reason.replace(/^Rescheduled:\s*/, '')}
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2.5 flex-shrink-0">
+                {/* Actions Toolbar */}
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                  {/* Details & Logs Modal Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setDetailsBooking(booking)}
+                    className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors"
+                    title="View details & change audit trail"
+                  >
+                    <History className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Details & Logs</span>
+                  </button>
+
+                  {/* Join Meeting Room */}
                   {booking.status === 'confirmed' && booking.meeting_join_url && (
                     <a
                       href={booking.meeting_join_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                      className="inline-flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors"
                     >
                       <Video className="h-3.5 w-3.5" />
-                      <span>Join Meeting</span>
+                      <span>Join</span>
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
 
+                  {/* Reschedule Button */}
                   {booking.status === 'confirmed' && (
                     <button
+                      type="button"
                       onClick={() => handleOpenReschedule(booking)}
-                      className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+                      className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
                       title="Reschedule Meeting with Reason"
                     >
                       <CalendarClock className="h-3.5 w-3.5 text-slate-500" />
@@ -326,13 +402,28 @@ export const EmployeeBookings: React.FC = () => {
                     </button>
                   )}
 
+                  {/* Cancel Button */}
                   {booking.status === 'confirmed' && (
                     <button
+                      type="button"
                       onClick={() => setCancellingBooking(booking)}
-                      className="inline-flex items-center space-x-1 text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+                      className="inline-flex items-center space-x-1 text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
                     >
                       <XCircle className="h-3.5 w-3.5" />
                       <span>Cancel</span>
+                    </button>
+                  )}
+
+                  {/* Admin Hard Delete Button */}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setDeletingBooking(booking)}
+                      className="inline-flex items-center space-x-1 text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-3 py-2 rounded-xl text-xs font-semibold transition-colors border border-red-200 hover:border-red-600"
+                      title="Permanently delete this meeting from database (Admin)"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
                     </button>
                   )}
                 </div>
@@ -342,37 +433,55 @@ export const EmployeeBookings: React.FC = () => {
         </div>
       )}
 
+      {/* Meeting Details & Change Logs Popup Modal */}
+      <MeetingDetailsModal
+        booking={detailsBooking}
+        isOpen={!!detailsBooking}
+        onClose={() => setDetailsBooking(null)}
+        onOpenReschedule={handleOpenReschedule}
+        onOpenCancel={(b) => setCancellingBooking(b)}
+        onOpenDelete={(b) => setDeletingBooking(b)}
+        isAdmin={isAdmin}
+      />
+
+      {/* Admin Delete Confirmation Modal */}
+      <AdminDeleteBookingModal
+        booking={deletingBooking}
+        isOpen={!!deletingBooking}
+        onClose={() => setDeletingBooking(null)}
+      />
+
       {/* Cancel Modal */}
       {cancellingBooking && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-base">Cancel Meeting</h3>
               <button
                 onClick={() => setCancellingBooking(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleCancelSubmit} className="mt-4 space-y-4">
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 Are you sure you want to cancel the meeting with{' '}
-                <strong>{cancellingBooking.invitees?.[0]?.name || 'Invitee'}</strong>? Both parties will receive cancellation notices.
+                <strong>{cancellingBooking.invitees?.[0]?.name || 'Invitee'}</strong>? Both parties will receive cancellation notices and the change will be saved to the audit log.
               </p>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  Reason for Cancellation
+                  Reason for Cancellation <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
                   rows={3}
-                  placeholder="e.g. Rescheduling conflict or unexpected emergency..."
+                  placeholder="e.g. Client requested cancellation or scheduling conflict..."
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500 leading-relaxed"
                 />
               </div>
 
@@ -380,14 +489,14 @@ export const EmployeeBookings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCancellingBooking(null)}
-                  className="px-3.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Keep Meeting
                 </button>
                 <button
                   type="submit"
-                  disabled={cancelMutation.isPending}
-                  className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-sm disabled:opacity-50"
+                  disabled={cancelMutation.isPending || !cancelReason.trim()}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold shadow-sm disabled:opacity-50 transition-colors"
                 >
                   {cancelMutation.isPending ? 'Cancelling...' : 'Confirm Cancellation'}
                 </button>
@@ -400,7 +509,7 @@ export const EmployeeBookings: React.FC = () => {
       {/* Reschedule Modal */}
       {reschedulingBooking && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <div>
                 <h3 className="font-bold text-slate-900 text-base">Reschedule Meeting</h3>
@@ -410,7 +519,7 @@ export const EmployeeBookings: React.FC = () => {
               </div>
               <button
                 onClick={() => setReschedulingBooking(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -418,14 +527,14 @@ export const EmployeeBookings: React.FC = () => {
 
             <form onSubmit={handleRescheduleSubmit} className="mt-4 space-y-4">
               {/* Current Meeting Info Banner */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
                 <div className="font-bold text-slate-800">
                   {reschedulingBooking.event_type_title || 'Meeting'} with {reschedulingBooking.invitees?.[0]?.name || 'Invitee'}
                 </div>
                 <div className="text-slate-500 flex items-center space-x-1.5">
                   <Clock className="h-3.5 w-3.5 text-slate-400" />
                   <span>
-                    Original Time: {format(parseISO(reschedulingBooking.start_time), 'EEEE, MMMM dd, yyyy @ hh:mm a')}
+                    Current Time: {format(parseISO(reschedulingBooking.start_time), 'EEEE, MMMM dd, yyyy @ hh:mm a')}
                   </span>
                 </div>
               </div>
@@ -441,10 +550,10 @@ export const EmployeeBookings: React.FC = () => {
                   placeholder="Explain why this meeting is being rescheduled (e.g. Schedule conflict, client requested morning slot, emergency)..."
                   value={rescheduleReason}
                   onChange={(e) => setRescheduleReason(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  This explanation will be shared with the invitee and saved in the booking history.
+                  This explanation will be shared with the attendee and recorded in the audit history.
                 </p>
               </div>
 
@@ -473,7 +582,7 @@ export const EmployeeBookings: React.FC = () => {
                       type="datetime-local"
                       value={customTime}
                       onChange={(e) => setCustomTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     />
                   </div>
                 ) : (
@@ -487,7 +596,7 @@ export const EmployeeBookings: React.FC = () => {
                           setRescheduleDate(e.target.value);
                           setSelectedSlot(null);
                         }}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       />
                     </div>
 
@@ -504,7 +613,7 @@ export const EmployeeBookings: React.FC = () => {
                           ))}
                         </div>
                       ) : availableSlots.length === 0 ? (
-                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-500">
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
                           No open slots available on this date. Please pick another date or use custom datetime.
                         </div>
                       ) : (
@@ -535,7 +644,7 @@ export const EmployeeBookings: React.FC = () => {
 
               {/* Selected Time Preview */}
               {(selectedSlot || customTime) && (
-                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium flex items-center space-x-2">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-medium flex items-center space-x-2">
                   <CalendarClock className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                   <span>
                     New time selected:{' '}
@@ -549,7 +658,7 @@ export const EmployeeBookings: React.FC = () => {
               )}
 
               {rescheduleError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-medium">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
                   {rescheduleError}
                 </div>
               )}
@@ -558,14 +667,14 @@ export const EmployeeBookings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setReschedulingBooking(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Keep Current Time
                 </button>
                 <button
                   type="submit"
                   disabled={rescheduleMutation.isPending || (!selectedSlot && !customTime) || !rescheduleReason.trim()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm disabled:opacity-50 transition-colors"
                 >
                   {rescheduleMutation.isPending ? 'Rescheduling...' : 'Confirm Reschedule'}
                 </button>

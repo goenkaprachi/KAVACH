@@ -68,3 +68,16 @@ class BookingResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class BookingAuditLogItem(BaseModel):
+    id: uuid.UUID
+    action: str
+    actor_type: str
+    actor_name: Optional[str] = None
+    description: str
+    metadata: Dict[str, Any] = {}
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

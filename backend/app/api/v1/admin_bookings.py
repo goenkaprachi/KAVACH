@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -60,3 +60,38 @@ async def list_org_bookings(
         results.append(item)
 
     return results
+
+
+@router.delete("/{booking_id}")
+async def delete_booking_permanently(
+    booking_id: uuid.UUID,
+    current_admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Booking).where(Booking.id == booking_id)
+    res = await db.execute(stmt)
+    booking = res.scalar_one_or_none()
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    # Disassociate any legacy bookings that reference this booking as rescheduled_from_id
+    from sqlalchemy import update, delete
+    from app.models.notification import AuditLog
+    await db.execute(
+        update(Booking).where(Booking.rescheduled_from_id == booking_id).values(rescheduled_from_id=None)
+    )
+
+    # Delete any audit logs associated with this meeting
+    await db.execute(
+        delete(AuditLog).where(
+            AuditLog.entity_type == "booking",
+            AuditLog.entity_id == booking_id
+        )
+    )
+
+    # Delete booking - cascade will clean up invitees and notifications_log
+    await db.delete(booking)
+    await db.commit()
+
+    return {"status": "deleted", "message": "Meeting deleted permanently", "id": str(booking_id)}
