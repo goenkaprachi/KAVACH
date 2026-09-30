@@ -18,7 +18,7 @@ from app.schemas.routing_form import (
     RoutingFormEvaluateRequest,
     RoutingFormEvaluateResponse,
 )
-from app.api.v1.auth import require_employee
+from app.api.deps import require_employee
 
 router = APIRouter(prefix="/routing-forms", tags=["Routing Forms"])
 

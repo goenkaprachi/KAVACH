@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from sqlalchemy import String, Text, DateTime, ForeignKey, Index, Uuid, JSON, Boolean
+from sqlalchemy import String, Text, DateTime, ForeignKey, Index, Uuid, JSON, Boolean, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, generate_uuid, generate_booking_reference, utc_now
 

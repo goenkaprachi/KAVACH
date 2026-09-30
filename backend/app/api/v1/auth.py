@@ -34,7 +34,7 @@ from app.schemas.auth import (
     GoogleAuthorizeUrlResponse,
     GoogleCallbackRequest,
 )
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_employee, require_admin
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 

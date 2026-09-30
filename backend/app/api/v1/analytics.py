@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.models.user import User
 from app.models.booking import Booking
 from app.models.event_type import EventType
-from app.api.v1.auth import require_employee
+from app.api.deps import require_employee
 
 router = APIRouter(prefix="/analytics", tags=["Analytics & Intelligence"])
 
