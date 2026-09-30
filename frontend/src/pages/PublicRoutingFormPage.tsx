@@ -92,9 +92,9 @@ export const PublicRoutingFormPage: React.FC = () => {
         <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/60">
           <div className="flex items-center space-x-2.5 pb-2">
             <img
-              src="/badge.jpg"
+              src="/badge.png"
               alt="Kavach Connect"
-              className="h-8 w-8 rounded-full object-cover shadow-sm border border-amber-900/20"
+              className="h-8 w-8 rounded-full object-contain shadow-xs shrink-0"
             />
             <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Kavach Connect</span>
           </div>

@@ -330,9 +330,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <img
-            src="/badge.jpg"
+            src="/badge.png"
             alt="Kavach"
-            className="h-9 w-9 rounded-full object-cover shadow-xs ring-2 ring-cyan-500/20 shrink-0"
+            className="h-9 w-9 rounded-full object-contain shadow-xs shrink-0"
           />
           {!isMinimized && (
             <div className="min-w-0 flex-1">

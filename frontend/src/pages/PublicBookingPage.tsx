@@ -334,9 +334,9 @@ export const PublicBookingPage: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center space-x-2.5 pb-1">
               <img
-                src="/badge.jpg"
+                src="/badge.png"
                 alt="Kavach Connect"
-                className="h-8 w-8 rounded-full object-cover shadow-sm border border-amber-900/20"
+                className="h-8 w-8 rounded-full object-contain shadow-xs shrink-0"
               />
               <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Kavach Connect</span>
             </div>
@@ -720,7 +720,7 @@ export const PublicBookingPage: React.FC = () => {
           )}
 
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center space-x-2">
-            <img src="/badge.jpg" alt="Kavach Connect" className="h-4 w-4 rounded-full object-cover" />
+            <img src="/badge.png" alt="Kavach Connect" className="h-4 w-4 rounded-full object-contain" />
             <span className="text-[11px] text-slate-400 font-medium">
               Powered by Kavach Connect — Enterprise Scheduling
             </span>

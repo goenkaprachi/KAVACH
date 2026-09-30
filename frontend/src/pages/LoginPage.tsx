@@ -65,9 +65,9 @@ export const LoginPage: React.FC = () => {
 
         <div className="flex justify-center mb-3">
           <img
-            src="/badge.jpg"
+            src="/badge.png"
             alt="Kavach Connect"
-            className="h-20 w-20 rounded-2xl object-cover shadow-lg border-2 border-cyan-600/30 ring-4 ring-cyan-500/10"
+            className="h-24 w-24 rounded-full object-contain drop-shadow-md"
           />
         </div>
 

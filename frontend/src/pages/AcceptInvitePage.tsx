@@ -100,9 +100,9 @@ export const AcceptInvitePage: React.FC = () => {
       <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md text-center">
         <div className="flex justify-center mb-3">
           <img
-            src="/badge.jpg"
+            src="/badge.png"
             alt="Kavach Connect"
-            className="h-20 w-20 rounded-2xl object-cover shadow-lg border-2 border-cyan-600/30 ring-4 ring-cyan-500/10"
+            className="h-24 w-24 rounded-full object-contain drop-shadow-md"
           />
         </div>
         <h2 className="mt-2 text-center text-2xl font-black tracking-tight text-slate-900">
