@@ -33,7 +33,11 @@ import {
   ArrowLeft,
   CheckCircle2,
   Sparkles,
-  Shield
+  Shield,
+  ShieldCheck,
+  X,
+  KeyRound,
+  AlertCircle,
 } from 'lucide-react';
 
 export const PublicBookingPage: React.FC = () => {
@@ -56,6 +60,17 @@ export const PublicBookingPage: React.FC = () => {
   const [inviteeEmail, setInviteeEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [bookingError, setBookingError] = useState<string | null>(null);
+
+  // Email Verification State
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationToken, setVerificationToken] = useState<string | null>(null);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<any | null>(null);
+
 
   // 1. Fetch public event type details
   const { data: eventType, isLoading: loadingEvent, error: eventError } = useQuery({
@@ -172,6 +187,54 @@ export const PublicBookingPage: React.FC = () => {
     },
   });
 
+  const sendVerificationCode = async (email: string) => {
+    setSendingCode(true);
+    setVerificationError(null);
+    try {
+      await api.post('/bookings/send-verification-code', { email });
+    } catch (err: any) {
+      setVerificationError(
+        err.response?.data?.detail || 'Failed to send verification code. Please check your email and try again.'
+      );
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyAndSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = verificationCode.trim();
+    if (!cleanCode || cleanCode.length < 6) {
+      setVerificationError('Please enter the 6-digit verification code sent to your email.');
+      return;
+    }
+    setVerifyingCode(true);
+    setVerificationError(null);
+    try {
+      const res = await api.post('/bookings/verify-code', {
+        email: inviteeEmail.trim(),
+        code: cleanCode,
+      });
+      const token = res.data.token;
+      setVerificationToken(token);
+      setVerifiedEmail(inviteeEmail.trim().toLowerCase());
+      setShowVerificationModal(false);
+
+      if (pendingPayload) {
+        bookMutation.mutate({
+          ...pendingPayload,
+          verification_token: token,
+        });
+      }
+    } catch (err: any) {
+      setVerificationError(
+        err.response?.data?.detail || 'Invalid or expired verification code. Please try again.'
+      );
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSlot || !eventType) return;
@@ -208,17 +271,34 @@ export const PublicBookingPage: React.FC = () => {
       }
     }
 
-    bookMutation.mutate({
+    const payload = {
       event_type_id: eventType.id,
       start_time: selectedSlot.start_time,
-      invitee_name: inviteeName,
-      invitee_email: inviteeEmail,
+      invitee_name: inviteeName.trim(),
+      invitee_email: inviteeEmail.trim(),
       invitee_timezone: selectedTz,
       custom_answers,
       location_choice: selectedLocation || undefined,
       notes: notes.trim() || undefined,
-    });
+    };
+
+    // If this email was already verified in this session
+    if (verificationToken && verifiedEmail === inviteeEmail.trim().toLowerCase()) {
+      bookMutation.mutate({
+        ...payload,
+        verification_token: verificationToken,
+      });
+      return;
+    }
+
+    // Require email verification before completing booking
+    setPendingPayload(payload);
+    setVerificationCode('');
+    setVerificationError(null);
+    setShowVerificationModal(true);
+    sendVerificationCode(inviteeEmail.trim());
   };
+
 
   // Calendar rendering helpers
   const renderHeader = () => {
@@ -712,6 +792,94 @@ export const PublicBookingPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Email Verification Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => setShowVerificationModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Verify Your Email</h3>
+                <p className="text-xs text-slate-500">Security check to confirm your booking</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              We sent a 6-digit confirmation code to{' '}
+              <strong className="text-slate-900 font-semibold">{inviteeEmail}</strong>. Please enter it below to confirm your meeting with{' '}
+              <strong className="text-slate-900 font-semibold">{eventType?.owner?.name || 'Host'}</strong>.
+            </p>
+
+            {verificationError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <span>{verificationError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyAndSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 text-center">
+                  6-Digit Verification Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  required
+                  placeholder="123456"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full text-center text-2xl font-mono tracking-widest py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none font-bold text-slate-800"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={verifyingCode || verificationCode.trim().length < 6}
+                className="w-full py-3 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-500/25 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+              >
+                {verifyingCode ? (
+                  <span>Verifying & Confirming...</span>
+                ) : (
+                  <>
+                    <KeyRound className="h-4 w-4" />
+                    <span>Confirm & Schedule Meeting</span>
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center justify-between pt-2 text-xs">
+                <button
+                  type="button"
+                  disabled={sendingCode}
+                  onClick={() => sendVerificationCode(inviteeEmail.trim())}
+                  className="text-cyan-700 hover:text-cyan-800 font-semibold hover:underline disabled:opacity-50"
+                >
+                  {sendingCode ? 'Sending code...' : "Didn't receive code? Resend"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowVerificationModal(false)}
+                  className="text-slate-500 hover:text-slate-700 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

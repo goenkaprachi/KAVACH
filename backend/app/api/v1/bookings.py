@@ -12,10 +12,12 @@ from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
+import random
 from app.core.database import get_db
 from app.models.user import User
 from app.models.event_type import EventType
 from app.models.booking import Booking, Invitee
+from app.models.verification import BookingEmailVerification
 from app.models.notification import AuditLog
 from app.schemas.booking import (
     BookingCreateRequest,
@@ -28,11 +30,16 @@ from app.schemas.booking import (
     UpdateBookingOutcomeRequest,
     UpdateFollowupStatusRequest,
     UpdateInviteeRequest,
+    SendVerificationCodeRequest,
+    VerifyCodeRequest,
+    VerifyCodeResponse,
+    PublicManageBookingResponse,
 )
-from app.api.deps import get_current_user, require_employee
+from app.api.deps import get_current_user, get_optional_current_user, require_employee
 from app.services.availability_engine import AvailabilityEngine
 from app.services.meeting_provider_hub import meeting_hub
 from app.services.email_service import email_service
+
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -103,11 +110,107 @@ def build_booking_response(
     )
 
 
+@router.post("/send-verification-code")
+async def send_booking_verification_code(
+    req: SendVerificationCodeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    email = req.email.strip().lower()
+    code = f"{random.randint(100000, 999999)}"
+    token = uuid.uuid4()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+    verification = BookingEmailVerification(
+        email=email,
+        code=code,
+        token=token,
+        expires_at=expires_at,
+    )
+    db.add(verification)
+    await db.commit()
+
+    try:
+        await email_service.send_verification_email(email=email, code=code)
+    except Exception as e:
+        logger.warning(f"Failed to dispatch verification email to {email}: {e}")
+
+    return {
+        "message": "Verification code sent to your email",
+        "email": email,
+    }
+
+
+@router.post("/verify-code", response_model=VerifyCodeResponse)
+async def verify_booking_code(
+    req: VerifyCodeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    email = req.email.strip().lower()
+    code = req.code.strip()
+    now_utc = datetime.now(timezone.utc)
+
+    stmt = select(BookingEmailVerification).where(
+        BookingEmailVerification.email == email,
+        BookingEmailVerification.code == code,
+        BookingEmailVerification.expires_at > now_utc,
+    ).order_by(BookingEmailVerification.created_at.desc())
+    res = await db.execute(stmt)
+    record = res.scalars().first()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code. Please request a new code.",
+        )
+
+    record.verified_at = now_utc
+    await db.commit()
+
+    return VerifyCodeResponse(
+        verified=True,
+        token=record.token,
+        message="Email successfully verified.",
+    )
+
+
 @router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 async def create_booking(
     req: BookingCreateRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    # 0. Invitee Email Verification Requirement
+    inv_email = req.invitee_email.strip().lower()
+    verified = False
+    now_utc = datetime.now(timezone.utc)
+
+    if req.verification_token:
+        v_stmt = select(BookingEmailVerification).where(
+            BookingEmailVerification.email == inv_email,
+            BookingEmailVerification.token == req.verification_token,
+            BookingEmailVerification.verified_at.isnot(None),
+            BookingEmailVerification.expires_at > now_utc,
+        )
+        v_res = await db.execute(v_stmt)
+        if v_res.scalar_one_or_none():
+            verified = True
+    elif req.verification_code:
+        v_stmt = select(BookingEmailVerification).where(
+            BookingEmailVerification.email == inv_email,
+            BookingEmailVerification.code == req.verification_code.strip(),
+            BookingEmailVerification.expires_at > now_utc,
+        ).order_by(BookingEmailVerification.created_at.desc())
+        v_res = await db.execute(v_stmt)
+        v_record = v_res.scalars().first()
+        if v_record:
+            v_record.verified_at = now_utc
+            verified = True
+
+    if not verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitee email verification is required. Please verify your email before booking.",
+        )
+
     # 1. Load Event Type and Host Employee
     et_stmt = select(EventType).where(
         EventType.id == req.event_type_id,
@@ -610,7 +713,7 @@ async def list_my_bookings(
 async def cancel_booking(
     booking_id: uuid.UUID,
     req: CancelBookingRequest,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Booking).where(Booking.id == booking_id).options(
@@ -623,6 +726,12 @@ async def cancel_booking(
 
     if not booking:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    if booking.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This booking has already been cancelled.",
+        )
 
     cancelled_by = None
     if current_user and (current_user.id == booking.employee_id or current_user.role == "admin"):
@@ -726,7 +835,7 @@ async def cancel_booking(
 async def reschedule_booking(
     booking_id: uuid.UUID,
     req: RescheduleBookingRequest,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Booking).where(Booking.id == booking_id).options(
@@ -737,7 +846,13 @@ async def reschedule_booking(
     res = await db.execute(stmt)
     old_booking = res.scalar_one_or_none()
 
-    if not old_booking or old_booking.status != "confirmed":
+    if not old_booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    if old_booking.status == "cancelled":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot reschedule a cancelled booking.")
+
+    if old_booking.status != "confirmed":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking is not active")
 
     if current_user and (current_user.id == old_booking.employee_id or current_user.role == "admin"):
@@ -763,6 +878,85 @@ async def reschedule_booking(
     duration = event_type.duration_minutes if event_type else int((old_end_utc - old_start_utc).total_seconds() / 60)
     new_slot_start_utc = req.new_start_time.astimezone(timezone.utc)
     new_slot_end_utc = new_slot_start_utc + timedelta(minutes=duration)
+
+    now_utc = datetime.now(timezone.utc)
+    if new_slot_start_utc < now_utc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cannot reschedule a meeting to a past time.",
+        )
+
+    # Availability Engine and Scheduling Constraints
+    if event_type:
+        if event_type.min_notice_minutes and event_type.min_notice_minutes > 0:
+            min_notice_threshold = now_utc + timedelta(minutes=event_type.min_notice_minutes)
+            if new_slot_start_utc < min_notice_threshold:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"This meeting requires at least {event_type.min_notice_minutes} minutes advance notice.",
+                )
+
+        if event_type.max_days_in_advance and event_type.max_days_in_advance > 0:
+            max_advance_threshold = now_utc + timedelta(days=event_type.max_days_in_advance)
+            if new_slot_start_utc > max_advance_threshold:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Bookings cannot be scheduled more than {event_type.max_days_in_advance} days in advance.",
+                )
+
+        inv_tz_str = old_booking.invitees[0].timezone if old_booking.invitees else "UTC"
+        try:
+            inv_tz = ZoneInfo(inv_tz_str)
+        except Exception:
+            inv_tz = ZoneInfo("UTC")
+
+        target_date = new_slot_start_utc.astimezone(inv_tz).date()
+
+        available_slots = await AvailabilityEngine.get_available_slots_for_date(
+            session=db,
+            event_type=event_type,
+            employee=employee,
+            target_date=target_date,
+            invitee_tz_str=inv_tz_str,
+        )
+
+        is_slot_available = any(
+            abs((datetime.fromisoformat(s["start_time"]).astimezone(timezone.utc) - new_slot_start_utc).total_seconds()) < 60
+            for s in available_slots
+        )
+
+        if not is_slot_available:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The selected time slot is not available. Please select another time.",
+            )
+
+    # Exclude double booking against host's other active bookings
+    overlap_stmt = select(Booking.id).where(
+        Booking.employee_id == employee.id,
+        Booking.id != old_booking.id,
+        Booking.status == "confirmed",
+        Booking.start_time < new_slot_end_utc,
+        Booking.end_time > new_slot_start_utc,
+    )
+    overlap_res = await db.execute(overlap_stmt)
+    if overlap_res.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The host is already booked for another meeting during this time.",
+        )
+
+    # Clean up old external calendar event before creating a new one
+    if old_booking.external_meeting_ref and old_booking.employee:
+        try:
+            from app.services.google_calendar_service import google_calendar_service
+            await google_calendar_service.delete_calendar_event(
+                user=old_booking.employee,
+                event_id=old_booking.external_meeting_ref,
+                db=db,
+            )
+        except Exception as g_del_err:
+            logger.warning(f"Failed to delete old calendar event on reschedule {old_booking.external_meeting_ref}: {g_del_err}")
 
     att_email = old_booking.invitees[0].email if old_booking.invitees else None
     meeting_title = "Meeting with Kavach" if (old_booking.event_type_id is not None or event_type is not None) else (old_booking.title or "Rescheduled Meeting")
@@ -844,11 +1038,114 @@ async def reschedule_booking(
     )
 
 
+@router.get("/manage/{token}", response_model=PublicManageBookingResponse)
+async def get_booking_by_manage_token(
+    token: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Invitee)
+        .where(Invitee.cancellation_token == token)
+        .options(
+            selectinload(Invitee.booking).selectinload(Booking.employee),
+            selectinload(Invitee.booking).selectinload(Booking.event_type),
+        )
+    )
+    res = await db.execute(stmt)
+    invitee = res.scalar_one_or_none()
+    if not invitee or not invitee.booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found for this manage link.")
+
+    b = invitee.booking
+    et = b.event_type
+    dur = et.duration_minutes if et else int((b.end_time - b.start_time).total_seconds() / 60)
+
+    return PublicManageBookingResponse(
+        id=b.id,
+        booking_reference=b.booking_reference,
+        event_type_id=b.event_type_id,
+        title=b.title or (et.title if et else "Meeting"),
+        start_time=b.start_time,
+        end_time=b.end_time,
+        status=b.status,
+        meeting_provider=b.meeting_provider,
+        meeting_join_url=b.meeting_join_url,
+        employee_name=b.employee.name if b.employee else None,
+        invitee_name=invitee.name,
+        invitee_email=invitee.email,
+        invitee_timezone=invitee.timezone,
+        cancellation_reason=b.cancellation_reason,
+        cancelled_by=b.cancelled_by,
+        is_rescheduled=getattr(b, "is_rescheduled", False) or (b.rescheduled_from_id is not None),
+        event_type_slug=et.slug if et else None,
+        employee_username=b.employee.username if b.employee else None,
+        duration_minutes=dur,
+    )
+
+
+@router.post("/manage/{token}/cancel", response_model=BookingResponse)
+async def cancel_booking_via_token(
+    token: uuid.UUID,
+    req: CancelBookingRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Invitee)
+        .where(Invitee.cancellation_token == token)
+        .options(
+            selectinload(Invitee.booking).selectinload(Booking.invitees),
+            selectinload(Invitee.booking).selectinload(Booking.employee),
+            selectinload(Invitee.booking).selectinload(Booking.event_type),
+        )
+    )
+    res = await db.execute(stmt)
+    invitee = res.scalar_one_or_none()
+    if not invitee or not invitee.booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found for this token.")
+
+    req.cancellation_token = token
+    return await cancel_booking(
+        booking_id=invitee.booking.id,
+        req=req,
+        current_user=None,
+        db=db,
+    )
+
+
+@router.post("/manage/{token}/reschedule", response_model=BookingResponse)
+async def reschedule_booking_via_token(
+    token: uuid.UUID,
+    req: RescheduleBookingRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Invitee)
+        .where(Invitee.cancellation_token == token)
+        .options(
+            selectinload(Invitee.booking).selectinload(Booking.invitees),
+            selectinload(Invitee.booking).selectinload(Booking.employee),
+            selectinload(Invitee.booking).selectinload(Booking.event_type),
+        )
+    )
+    res = await db.execute(stmt)
+    invitee = res.scalar_one_or_none()
+    if not invitee or not invitee.booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found for this token.")
+
+    req.cancellation_token = token
+    return await reschedule_booking(
+        booking_id=invitee.booking.id,
+        req=req,
+        current_user=None,
+        db=db,
+    )
+
+
 @router.get("/{booking_id}/logs", response_model=List[BookingAuditLogItem])
 async def get_booking_audit_logs(
     booking_id: uuid.UUID,
     cancellation_token: Optional[uuid.UUID] = Query(default=None),
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Booking).where(Booking.id == booking_id).options(

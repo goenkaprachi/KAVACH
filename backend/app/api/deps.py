@@ -9,6 +9,39 @@ from app.core.security import decode_token
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+
+async def get_optional_current_user(
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[User]:
+    if not token:
+        return None
+    payload = decode_token(token)
+    if payload is None:
+        return None
+
+    user_id_str: Optional[str] = payload.get("sub")
+    token_type: Optional[str] = payload.get("type")
+
+    if user_id_str is None or token_type != "access":
+        return None
+
+    try:
+        user_uuid = uuid.UUID(user_id_str)
+    except ValueError:
+        return None
+
+    stmt = select(User).where(User.id == user_uuid)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user is None or user.status == "deactivated":
+        return None
+
+    return user
+
 
 
 async def get_current_user(

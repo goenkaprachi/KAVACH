@@ -22,6 +22,21 @@ class InviteeResponse(BaseModel):
         from_attributes = True
 
 
+class SendVerificationCodeRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class VerifyCodeResponse(BaseModel):
+    verified: bool
+    token: Optional[uuid.UUID] = None
+    message: str
+
+
 class BookingCreateRequest(BaseModel):
     event_type_id: uuid.UUID
     start_time: datetime  # Invitee picked start time (can be with offset)
@@ -31,6 +46,31 @@ class BookingCreateRequest(BaseModel):
     custom_answers: Dict[str, Any] = {}
     notes: Optional[str] = None
     location_choice: Optional[str] = None
+    verification_code: Optional[str] = None
+    verification_token: Optional[uuid.UUID] = None
+
+
+class PublicManageBookingResponse(BaseModel):
+    id: uuid.UUID
+    booking_reference: str
+    event_type_id: Optional[uuid.UUID] = None
+    title: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    status: str
+    meeting_provider: str
+    meeting_join_url: Optional[str] = None
+    employee_name: Optional[str] = None
+    invitee_name: str
+    invitee_email: str
+    invitee_timezone: str
+    cancellation_reason: Optional[str] = None
+    cancelled_by: Optional[str] = None
+    is_rescheduled: bool = False
+    event_type_slug: Optional[str] = None
+    employee_username: Optional[str] = None
+    duration_minutes: Optional[int] = None
+
 
 
 class CancelBookingRequest(BaseModel):

@@ -27,7 +27,11 @@ SYSTEM_DEFAULT_TEMPLATES = {
         <p style="margin: 4px 0;"><strong>Organizer:</strong> {host_name} ({host_email})</p>
         <p style="margin: 4px 0;"><strong>Meeting Link:</strong> <a href="{meeting_url}" style="color: #0284c7; font-weight: bold;">{meeting_url}</a></p>
     </div>
-    <p style="color: #94a3b8; font-size: 12px;">Need to make changes? You can cancel or reschedule using your reference code: <code>{cancellation_token}</code></p>
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 8px;">Need to make changes to your booking?</p>
+        <a href="{manage_url}" style="display: inline-block; background-color: #0284c7; color: #ffffff; padding: 8px 16px; font-size: 13px; font-weight: bold; text-decoration: none; border-radius: 6px;">Cancel or Reschedule Booking</a>
+        <p style="color: #94a3b8; font-size: 11px; margin-top: 6px;">Booking Reference: <code>{booking_reference}</code></p>
+    </div>
 </div>"""
     },
     "booking_confirmation_host": {
@@ -62,6 +66,11 @@ SYSTEM_DEFAULT_TEMPLATES = {
         <p style="margin: 4px 0;"><strong>Previous Time:</strong> <span style="text-decoration: line-through; color: #94a3b8;">{old_start_time}</span></p>
         <p style="margin: 4px 0;"><strong>New Time:</strong> <span style="color: #16a34a; font-weight: bold;">{new_start_time}</span></p>
         <p style="margin: 4px 0;"><strong>Join Link:</strong> <a href="{meeting_url}" style="color: #7c3aed; font-weight: bold;">{meeting_url}</a></p>
+    </div>
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 8px;">Need to make further changes to your booking?</p>
+        <a href="{manage_url}" style="display: inline-block; background-color: #7c3aed; color: #ffffff; padding: 8px 16px; font-size: 13px; font-weight: bold; text-decoration: none; border-radius: 6px;">Manage Booking</a>
+        <p style="color: #94a3b8; font-size: 11px; margin-top: 6px;">Booking Reference: <code>{booking_reference}</code></p>
     </div>
 </div>"""
     },
@@ -147,7 +156,11 @@ SYSTEM_DEFAULT_TEMPLATES = {
         <p style="margin: 4px 0;"><strong>Host:</strong> {host_name} ({host_email})</p>
         <p style="margin: 4px 0;"><strong>Join Link:</strong> <a href="{meeting_url}" style="color: #0284c7; font-weight: bold;">{meeting_url}</a></p>
     </div>
-    <p style="color: #94a3b8; font-size: 12px;">Need to reschedule or make changes? Reference code: <code>{cancellation_token}</code></p>
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 8px;">Need to reschedule or make changes?</p>
+        <a href="{manage_url}" style="display: inline-block; background-color: #0284c7; color: #ffffff; padding: 8px 16px; font-size: 13px; font-weight: bold; text-decoration: none; border-radius: 6px;">Manage Booking</a>
+        <p style="color: #94a3b8; font-size: 11px; margin-top: 6px;">Booking Reference: <code>{booking_reference}</code></p>
+    </div>
 </div>"""
     },
     "meeting_reminder_1h_attendee": {
@@ -450,6 +463,11 @@ class EmailService:
             join_url=join_url if join_url.startswith("http") else None,
         )
 
+        token = getattr(invitee, "cancellation_token", "")
+        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+        manage_url = f"{frontend_base}/booking/manage/{token}" if token else ""
+        booking_ref = getattr(booking, "booking_reference", "")
+
         ctx = {
             "event_title": event_title,
             "attendee_name": invitee.name,
@@ -459,7 +477,9 @@ class EmailService:
             "start_time": start_fmt,
             "end_time": booking.end_time.strftime("%A, %B %d, %Y at %I:%M %p UTC"),
             "meeting_url": join_url,
-            "cancellation_token": getattr(invitee, "cancellation_token", ""),
+            "cancellation_token": str(token),
+            "booking_reference": booking_ref,
+            "manage_url": manage_url,
         }
 
         subj_a, body_a = await EmailService.get_rendered_template("booking_confirmation_attendee", ctx, db)
@@ -544,6 +564,11 @@ class EmailService:
             join_url=join_url if join_url.startswith("http") else None,
         )
 
+        token = getattr(invitee, "cancellation_token", "")
+        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+        manage_url = f"{frontend_base}/booking/manage/{token}" if token else ""
+        booking_ref = getattr(new_booking, "booking_reference", "")
+
         ctx = {
             "event_title": event_title,
             "attendee_name": invitee.name,
@@ -555,7 +580,9 @@ class EmailService:
             "start_time": new_fmt,
             "meeting_url": join_url,
             "reason": reason or "No specific reason provided.",
-            "cancellation_token": getattr(invitee, "cancellation_token", ""),
+            "cancellation_token": str(token),
+            "booking_reference": booking_ref,
+            "manage_url": manage_url,
         }
 
         subj_a, body_a = await EmailService.get_rendered_template("booking_rescheduled_attendee", ctx, db)
@@ -691,6 +718,11 @@ class EmailService:
         display_title = "Meeting with Kavach" if (is_external and recipient_role == "attendee") else event_title
         invitee = booking.invitees[0] if getattr(booking, "invitees", None) and len(booking.invitees) > 0 else None
 
+        token = getattr(invitee, "cancellation_token", "") if invitee else ""
+        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+        manage_url = f"{frontend_base}/booking/manage/{token}" if token else ""
+        booking_ref = getattr(booking, "booking_reference", "")
+
         ctx = {
             "event_title": display_title,
             "attendee_name": recipient_name if recipient_role == "attendee" else (invitee.name if invitee else "Guest"),
@@ -701,7 +733,9 @@ class EmailService:
             "end_time": booking.end_time.strftime("%A, %B %d, %Y at %I:%M %p UTC"),
             "meeting_url": join_url,
             "time_until": time_until_str,
-            "cancellation_token": getattr(invitee, "cancellation_token", "") if invitee else "",
+            "cancellation_token": str(token),
+            "booking_reference": booking_ref,
+            "manage_url": manage_url,
         }
 
         subj, body = await EmailService.get_rendered_template(template_type, ctx, db)
@@ -709,6 +743,28 @@ class EmailService:
             recipient_email=recipient_email,
             subject=subj,
             html_body=body,
+        )
+
+    @staticmethod
+    async def send_verification_email(email: str, code: str) -> bool:
+        subject = f"Your Verification Code: {code} - Kavach Connect"
+        body = f"""<div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h2 style="color: #0284c7; margin: 0;">Verify Your Email Address</h2>
+        <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Confirm your email to complete your meeting booking.</p>
+    </div>
+    <p>Hello,</p>
+    <p>Please enter the following verification code to confirm your booking on Kavach Connect:</p>
+    <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 16px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0284c7; font-family: monospace;">{code}</span>
+    </div>
+    <p style="color: #64748b; font-size: 13px;">This code expires in 15 minutes. If you did not request this booking, you can safely ignore this email.</p>
+</div>"""
+        return await EmailService.send_email(
+            recipient_email=email,
+            subject=subject,
+            html_body=body,
+            text_body=f"Your Kavach Connect verification code is: {code}. It expires in 15 minutes."
         )
 
     @staticmethod

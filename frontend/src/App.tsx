@@ -23,6 +23,8 @@ import { PublicRoutingFormPage } from './pages/PublicRoutingFormPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { EmbedBookingPage } from './pages/EmbedBookingPage';
 import { BrandingPage } from './pages/BrandingPage';
+import { InviteeManageBookingPage } from './pages/InviteeManageBookingPage';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,9 +66,11 @@ export const App: React.FC = () => {
           <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/auth/google/callback" element={<GoogleOAuthCallbackPage />} />
           <Route path="/forms/:slug" element={<PublicRoutingFormPage />} />
+          <Route path="/booking/manage/:token" element={<InviteeManageBookingPage />} />
           <Route path="/embed/:username/:slug" element={<EmbedBookingPage />} />
           <Route path="/:username/:slug" element={<PublicBookingPage />} />
           <Route path="/booking-confirmed" element={<BookingSuccessPage />} />
+
 
           {/* Protected — nested under AppShell */}
           <Route

@@ -384,6 +384,17 @@ export const BookingSuccessPage: React.FC = () => {
           </button>
         </div>
 
+        {invitee?.cancellation_token && (
+          <div className="pt-2">
+            <Link
+              to={`/booking/manage/${invitee.cancellation_token}`}
+              className="text-xs font-semibold text-cyan-700 hover:text-cyan-800 hover:underline"
+            >
+              Need to reschedule or make changes? Manage Booking &rarr;
+            </Link>
+          </div>
+        )}
+
         <p className="text-xs text-slate-400 pt-1">
           The meeting joining link and calendar file have also been sent to your email.
         </p>
