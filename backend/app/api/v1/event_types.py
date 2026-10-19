@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -18,6 +18,8 @@ from app.schemas.event_type import (
 from app.schemas.booking import SlotResponse
 from app.api.deps import require_employee
 from app.services.availability_engine import AvailabilityEngine
+from app.services.rate_limiter import BookingRateLimiter, get_client_ip
+
 
 router = APIRouter(prefix="/event-types", tags=["Event Types"])
 
@@ -173,8 +175,12 @@ async def delete_event_type(
 async def get_public_event_type(
     username: str,
     slug: str,
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ):
+    client_ip = get_client_ip(request)
+    await BookingRateLimiter.check_ip_limit(db, client_ip)
+
     user_stmt = select(User).where(User.username == username.lower().strip())
     user_res = await db.execute(user_stmt)
     user = user_res.scalar_one_or_none()
@@ -225,8 +231,12 @@ async def get_slots(
     slug: str,
     date_str: str = Query(..., alias="date", pattern=r"^\d{4}-\d{2}-\d{2}$"),
     tz: str = Query("UTC"),
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ):
+    client_ip = get_client_ip(request)
+    await BookingRateLimiter.check_ip_limit(db, client_ip)
+
     try:
         target_date = date.fromisoformat(date_str)
     except ValueError:
@@ -237,6 +247,7 @@ async def get_slots(
     user = user_res.scalar_one_or_none()
     if not user or user.status != "active":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Host not found or inactive")
+
 
     et_stmt = select(EventType).where(
         EventType.owner_user_id == user.id,

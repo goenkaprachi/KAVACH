@@ -7,7 +7,7 @@ from app.models.integration import CalendarConnection, MeetingProviderConfig
 from app.models.notification import NotificationTemplate, Workflow, NotificationsLog, AuditLog
 from app.models.routing_form import RoutingForm
 from app.models.system_setting import SystemSetting
-from app.models.rate_limit import LoginRateLimit
+from app.models.rate_limit import LoginRateLimit, BookingRateLimit
 from app.models.verification import BookingEmailVerification
 
 __all__ = [
@@ -30,5 +30,6 @@ __all__ = [
     "RoutingForm",
     "SystemSetting",
     "LoginRateLimit",
+    "BookingRateLimit",
     "BookingEmailVerification",
 ]

@@ -22,7 +22,7 @@ from app.core.security import (
 from app.models.user import User
 from app.models.availability import AvailabilitySchedule, AvailabilityRule
 from app.models.integration import MeetingProviderConfig
-from app.services.rate_limiter import LoginRateLimiter
+from app.services.rate_limiter import LoginRateLimiter, get_client_ip
 from app.schemas.auth import (
     Token,
     TokenRefreshRequest,
@@ -39,19 +39,6 @@ from app.api.deps import get_current_user, require_employee, require_admin
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-
-def get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        client_ip = forwarded.split(",")[0].strip()
-        if client_ip:
-            return client_ip
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip and real_ip.strip():
-        return real_ip.strip()
-    if request.client and request.client.host:
-        return request.client.host
-    return "127.0.0.1"
 
 
 @router.post("/login", response_model=Token)

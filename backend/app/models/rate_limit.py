@@ -15,3 +15,16 @@ class LoginRateLimit(Base):
     locked_until = Column(DateTime(timezone=True), index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class BookingRateLimit(Base):
+    __tablename__ = "booking_rate_limits"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key = Column(String(256), unique=True, index=True, nullable=False)
+    count = Column(Integer, default=1, nullable=False)
+    window_start = Column(DateTime(timezone=True), nullable=False)
+    last_request_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+

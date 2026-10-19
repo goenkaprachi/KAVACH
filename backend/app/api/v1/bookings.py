@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from zoneinfo import ZoneInfo
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,8 @@ from app.api.deps import get_current_user, get_optional_current_user, require_em
 from app.services.availability_engine import AvailabilityEngine
 from app.services.meeting_provider_hub import meeting_hub
 from app.services.email_service import email_service
+from app.services.rate_limiter import BookingRateLimiter, get_client_ip
+
 
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
@@ -113,8 +115,13 @@ def build_booking_response(
 @router.post("/send-verification-code")
 async def send_booking_verification_code(
     req: SendVerificationCodeRequest,
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ):
+    client_ip = get_client_ip(request)
+    await BookingRateLimiter.check_ip_limit(db, client_ip)
+    await BookingRateLimiter.check_verification_email_limit(db, req.email)
+
     email = req.email.strip().lower()
     code = f"{random.randint(100000, 999999)}"
     token = uuid.uuid4()
@@ -176,8 +183,13 @@ async def verify_booking_code(
 @router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 async def create_booking(
     req: BookingCreateRequest,
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ):
+    client_ip = get_client_ip(request)
+    await BookingRateLimiter.check_ip_limit(db, client_ip)
+    await BookingRateLimiter.check_booking_email_limit(db, req.invitee_email)
+
     # 0. Invitee Email Verification Requirement
     inv_email = req.invitee_email.strip().lower()
     verified = False

@@ -1,7 +1,7 @@
 import uuid
 import urllib.parse
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,6 +19,8 @@ from app.schemas.routing_form import (
     RoutingFormEvaluateResponse,
 )
 from app.api.deps import require_employee
+from app.services.rate_limiter import BookingRateLimiter, get_client_ip
+
 
 router = APIRouter(prefix="/routing-forms", tags=["Routing Forms"])
 
@@ -146,8 +148,12 @@ async def delete_routing_form(
 @router.get("/public/{slug}", response_model=RoutingFormPublicResponse)
 async def get_public_routing_form(
     slug: str,
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ):
+    client_ip = get_client_ip(request)
+    await BookingRateLimiter.check_ip_limit(db, client_ip)
+
     stmt = select(RoutingForm).where(
         RoutingForm.slug == slug.lower().strip(),
         RoutingForm.is_active == True,
@@ -172,8 +178,14 @@ async def get_public_routing_form(
 async def evaluate_routing_form(
     slug: str,
     req: RoutingFormEvaluateRequest,
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ):
+    client_ip = get_client_ip(request)
+    await BookingRateLimiter.check_ip_limit(db, client_ip)
+    if req.invitee_email:
+        await BookingRateLimiter.check_booking_email_limit(db, req.invitee_email)
+
     stmt = select(RoutingForm).where(
         RoutingForm.slug == slug.lower().strip(),
         RoutingForm.is_active == True,
@@ -182,6 +194,7 @@ async def evaluate_routing_form(
     form = res.scalar_one_or_none()
     if not form or not form.owner or form.owner.status != "active":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routing form not found or inactive")
+
 
     user_answers = req.answers or {}
     params: dict = {}

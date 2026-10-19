@@ -1,10 +1,28 @@
 import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.rate_limit import LoginRateLimit
+from app.models.rate_limit import LoginRateLimit, BookingRateLimit
+
+
+def get_client_ip(request: Optional[Request]) -> str:
+    if not request:
+        return "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+        if client_ip:
+            return client_ip
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip and real_ip.strip():
+        return real_ip.strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "127.0.0.1"
+
 
 
 class LoginRateLimiter:
@@ -167,3 +185,134 @@ class LoginRateLimiter:
                 record.locked_until = None
 
         await db.commit()
+
+
+class BookingRateLimiter:
+    """Rate limiter for public booking, slot checking, routing forms, and verification endpoints.
+    - Limit booking attempts to 5 per hour per email address (main limit).
+    - Limit verification emails to 10 per hour per email address.
+    - Generous per-IP backstop of 200 requests per hour across all public endpoints.
+    - Returns HTTP 429 with Retry-After header and clear message when limit is hit.
+    """
+
+    BOOKING_ATTEMPTS_LIMIT: int = 5
+    VERIFICATION_EMAILS_LIMIT: int = 10
+    IP_BACKSTOP_LIMIT: int = 200
+    WINDOW_SECONDS: int = 3600
+
+    @classmethod
+    def get_booking_email_key(cls, email: str) -> str:
+        return f"booking:email:{(email or '').lower().strip()}"
+
+    @classmethod
+    def get_verification_email_key(cls, email: str) -> str:
+        return f"verify:email:{(email or '').lower().strip()}"
+
+    @classmethod
+    def get_ip_key(cls, ip: str) -> str:
+        clean_ip = (ip or "127.0.0.1").strip()
+        return f"ip:{clean_ip}"
+
+    @classmethod
+    async def check_and_increment(
+        cls,
+        db: AsyncSession,
+        key: str,
+        limit: int,
+        window_seconds: int = 3600,
+        error_message: str = "Too many requests. Please try again later.",
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        stmt = select(BookingRateLimit).where(BookingRateLimit.key == key)
+        res = await db.execute(stmt)
+        if hasattr(res, "scalar_one_or_none"):
+            record = res.scalar_one_or_none()
+            if hasattr(record, "__await__"):
+                record = await record
+        else:
+            record = None
+
+        if not isinstance(record, BookingRateLimit) or not isinstance(getattr(record, "window_start", None), datetime):
+            record = None
+
+        if not record:
+            try:
+                record = BookingRateLimit(
+                    key=key,
+                    count=1,
+                    window_start=now,
+                    last_request_at=now,
+                )
+                db.add(record)
+                await db.commit()
+                return
+            except IntegrityError:
+                await db.rollback()
+                stmt = select(BookingRateLimit).where(BookingRateLimit.key == key)
+                res = await db.execute(stmt)
+                record = res.scalar_one_or_none()
+                if not isinstance(record, BookingRateLimit) or not isinstance(getattr(record, "window_start", None), datetime):
+                    record = None
+
+        if not record:
+            return
+
+        window_start = record.window_start
+        if window_start.tzinfo is None:
+            window_start = window_start.replace(tzinfo=timezone.utc)
+
+        elapsed = (now - window_start).total_seconds()
+        if elapsed >= window_seconds:
+            record.count = 1
+            record.window_start = now
+            record.last_request_at = now
+            await db.commit()
+            return
+
+        if record.count >= limit:
+            remaining_seconds = max(1, int(window_seconds - elapsed))
+            remaining_minutes = max(1, math.ceil(remaining_seconds / 60))
+            min_text = f"{remaining_minutes} minute" if remaining_minutes == 1 else f"{remaining_minutes} minutes"
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"{error_message} Please try again in {min_text}.",
+                headers={"Retry-After": str(remaining_seconds)},
+            )
+
+        record.count += 1
+        record.last_request_at = now
+        await db.commit()
+
+    @classmethod
+    async def check_ip_limit(cls, db: AsyncSession, client_ip: str) -> None:
+        key = cls.get_ip_key(client_ip)
+        await cls.check_and_increment(
+            db=db,
+            key=key,
+            limit=cls.IP_BACKSTOP_LIMIT,
+            window_seconds=cls.WINDOW_SECONDS,
+            error_message="Too many requests from this IP address.",
+        )
+
+    @classmethod
+    async def check_booking_email_limit(cls, db: AsyncSession, email: str) -> None:
+        key = cls.get_booking_email_key(email)
+        await cls.check_and_increment(
+            db=db,
+            key=key,
+            limit=cls.BOOKING_ATTEMPTS_LIMIT,
+            window_seconds=cls.WINDOW_SECONDS,
+            error_message="Too many booking attempts for this email address.",
+        )
+
+    @classmethod
+    async def check_verification_email_limit(cls, db: AsyncSession, email: str) -> None:
+        key = cls.get_verification_email_key(email)
+        await cls.check_and_increment(
+            db=db,
+            key=key,
+            limit=cls.VERIFICATION_EMAILS_LIMIT,
+            window_seconds=cls.WINDOW_SECONDS,
+            error_message="Too many verification emails requested for this email address.",
+        )
+
