@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, field_validator
 
@@ -60,9 +60,35 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ENCRYPTION_KEY: str = "dGhpcy1pcy1hLXNhbXBsZS1mZXJuZXQta2V5LTMyYnl0ZXM="
 
-    # CORS
+    # CORS: Read from environment (e.g. CORS_ORIGINS="https://app.kavach.live").
+    # If unset, falls back to local frontend (localhost) only. No wildcards.
     FRONTEND_BASE_URL: str = "http://localhost:5173"
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> List[str]:
+        default_local = ["http://localhost:5173", "http://127.0.0.1:5173"]
+        if v is None:
+            return default_local
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return default_local
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    items = json.loads(v)
+                    cleaned = [str(item).strip() for item in items if str(item).strip() and str(item).strip() != "*"]
+                    return cleaned if cleaned else default_local
+                except Exception:
+                    pass
+            origins = [o.strip() for o in v.split(",") if o.strip() and o.strip() != "*"]
+            return origins if origins else default_local
+        if isinstance(v, (list, tuple, set)):
+            origins = [str(item).strip() for item in v if str(item).strip() and str(item).strip() != "*"]
+            return origins if origins else default_local
+        return default_local
 
     # External Provider Defaults
     JITSI_BASE_URL: str = "https://meet.jit.si"

@@ -37,3 +37,38 @@ def test_booking_model_exclusion_constraint():
     c = exclude_constraints[0]
     assert c.name == "excl_booking_employee_timeslot"
     assert c.using == "gist"
+
+
+def test_cors_origins_fallback_to_localhost_when_unset():
+    s = Settings(
+        DATABASE_URL="postgresql://user:pass@localhost:5432/kavach",
+        CORS_ORIGINS=None,
+    )
+    assert s.CORS_ORIGINS == ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+
+def test_cors_origins_comma_separated_parsing():
+    s = Settings(
+        DATABASE_URL="postgresql://user:pass@localhost:5432/kavach",
+        CORS_ORIGINS="https://kavach.live, https://admin.kavach.live",
+    )
+    assert s.CORS_ORIGINS == ["https://kavach.live", "https://admin.kavach.live"]
+
+
+def test_cors_origins_filters_out_wildcard():
+    s = Settings(
+        DATABASE_URL="postgresql://user:pass@localhost:5432/kavach",
+        CORS_ORIGINS="*, https://kavach.live",
+    )
+    assert "*" not in s.CORS_ORIGINS
+    assert s.CORS_ORIGINS == ["https://kavach.live"]
+
+
+def test_cors_middleware_no_wildcard():
+    from app.main import app
+    for middleware in app.user_middleware:
+        if middleware.cls.__name__ == "CORSMiddleware":
+            allow_origins = middleware.kwargs.get("allow_origins", [])
+            assert "*" not in allow_origins
+            break
+
