@@ -7,7 +7,7 @@ from app.api.deps import require_admin, require_employee
 
 @pytest.mark.asyncio
 async def test_require_admin_success():
-    admin = User(id=uuid.uuid4(), email="admin@kavach.infra", role="admin", status="active")
+    admin = User(id=uuid.uuid4(), email="admin@example.com", role="admin", status="active")
     res = await require_admin(admin)
     assert res.role == "admin"
 
@@ -24,7 +24,7 @@ async def test_require_admin_forbidden_for_employee():
 @pytest.mark.asyncio
 async def test_require_employee_permits_both():
     emp = User(id=uuid.uuid4(), email="dev@kavach.infra", role="employee", status="active")
-    adm = User(id=uuid.uuid4(), email="admin@kavach.infra", role="admin", status="active")
+    adm = User(id=uuid.uuid4(), email="admin@example.com", role="admin", status="active")
     
     res1 = await require_employee(emp)
     assert res1.role == "employee"

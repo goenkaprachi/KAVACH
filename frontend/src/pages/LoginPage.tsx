@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../lib/store';
 import { api } from '../lib/api';
-import { Calendar, Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Calendar, Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -42,11 +42,6 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillDemoCreds = () => {
-    setEmail('admin@kavach.infra');
-    setPassword('Admin123!');
   };
 
   return (
@@ -103,7 +98,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@kavach.infra"
+                  placeholder="name@company.com"
                   className="block w-full pl-10 pr-3.5 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all text-slate-900 placeholder:text-slate-400"
                 />
               </div>
@@ -151,22 +146,6 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Demo helper */}
-          <div className="mt-6 pt-5 border-t border-slate-100 text-center">
-            <p className="text-[11px] text-slate-400 font-medium">
-              Demo Credentials:
-            </p>
-            <button
-              type="button"
-              onClick={fillDemoCreds}
-              title="Click to prefill credentials"
-              className="mt-1.5 inline-flex items-center gap-1.5 bg-slate-50 hover:bg-cyan-50 border border-slate-200/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl text-xs font-mono text-slate-700 hover:text-cyan-800 transition-all cursor-pointer shadow-2xs"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />
-              <span>admin@kavach.infra / Admin123!</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>

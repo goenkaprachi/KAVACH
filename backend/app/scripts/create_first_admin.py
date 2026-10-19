@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 from datetime import time
 from sqlalchemy import select
@@ -9,15 +10,21 @@ from app.models.availability import AvailabilitySchedule, AvailabilityRule
 
 
 async def create_first_admin(
-    email: str = "admin@kavach.infra",
-    password: str = "Admin123!",
+    email: str,
+    password: str,
     name: str = "Admin",
-    username: str = "admin",
+    username: str = "",
     timezone_str: str = "Asia/Kolkata"
 ):
-    print(f"Checking if admin account exists ({email})...")
+    if not email or not password:
+        raise ValueError("Both email and password are required to create the administrator account.")
+
+    target_email = email.lower().strip()
+    target_username = (username or target_email.split("@")[0]).lower().strip()
+
+    print(f"Checking if admin account exists ({target_email})...")
     async with AsyncSessionLocal() as db:
-        stmt = select(User).where(User.email == email.lower().strip())
+        stmt = select(User).where(User.email == target_email)
         res = await db.execute(stmt)
         existing = res.scalar_one_or_none()
 
@@ -27,8 +34,8 @@ async def create_first_admin(
 
         admin = User(
             name=name,
-            email=email.lower().strip(),
-            username=username.lower().strip(),
+            email=target_email,
+            username=target_username,
             password_hash=get_password_hash(password),
             role="admin",
             status="active",
@@ -59,14 +66,21 @@ async def create_first_admin(
         await db.commit()
         print("\n" + "=" * 50)
         print("First Admin Account Created Successfully!")
-        print(f"Email:    {email}")
-        print(f"Password: {password}")
-        print(f"Username: {username}")
+        print(f"Email:    {target_email}")
+        print(f"Username: {target_username}")
         print(f"Role:     admin")
+        print("Password: [SECURELY HASHED]")
         print("=" * 50 + "\n")
 
 
 if __name__ == "__main__":
-    email = sys.argv[1] if len(sys.argv) > 1 else "admin@kavach.infra"
-    password = sys.argv[2] if len(sys.argv) > 2 else "Admin123!"
+    email = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ADMIN_EMAIL", "").strip()
+    password = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("ADMIN_PASSWORD", "").strip()
+
+    if not email or not password:
+        print("Error: Administrator email and password must be provided.")
+        print("Usage: python -m app.scripts.create_first_admin <email> <password>")
+        print("   Or: set ADMIN_EMAIL and ADMIN_PASSWORD environment variables.")
+        sys.exit(1)
+
     asyncio.run(create_first_admin(email=email, password=password))

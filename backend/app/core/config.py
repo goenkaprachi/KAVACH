@@ -53,12 +53,31 @@ class Settings(BaseSettings):
                 v = "postgresql+asyncpg://" + v[len("postgresql://"):]
         return v
 
-    # Security
-    JWT_SECRET: str = "kavach_connect_insecure_default_secret_key_change_me_12345"
+    # Security: JWT_SECRET and ENCRYPTION_KEY must be provided via environment variables.
+    # Hardcoded default secrets are removed.
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    ENCRYPTION_KEY: str = "dGhpcy1pcy1hLXNhbXBsZS1mZXJuZXQta2V5LTMyYnl0ZXM="
+    ENCRYPTION_KEY: str = ""
+
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def validate_jwt_secret(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError(
+                "JWT_SECRET environment variable is missing. A secure random secret key is required."
+            )
+        return v.strip()
+
+    @field_validator("ENCRYPTION_KEY")
+    @classmethod
+    def validate_encryption_key(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError(
+                "ENCRYPTION_KEY environment variable is missing. A 32-byte url-safe base64 Fernet key is required."
+            )
+        return v.strip()
 
     # CORS: Read from environment (e.g. CORS_ORIGINS="https://app.kavach.live").
     # If unset, falls back to local frontend (localhost) only. No wildcards.

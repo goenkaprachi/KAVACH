@@ -80,16 +80,13 @@ kavach/
    ```
 
 ### 2. Backend Setup
-Activate the virtual environment and run database migrations:
+Configure your environment variables in `backend/.env` (including `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `JWT_SECRET`, and `ENCRYPTION_KEY`). Then activate the virtual environment and run database migrations:
 ```powershell
 # In Kavach/backend:
 .\.venv\Scripts\activate
 
-# Run Alembic migrations:
+# Run Alembic migrations (creates schema and provisions initial admin from ADMIN_EMAIL / ADMIN_PASSWORD):
 alembic upgrade head
-
-# Seed the initial admin account:
-python -m app.scripts.create_first_admin
 
 # Start FastAPI dev server:
 uvicorn app.main:app --reload --port 8000
@@ -106,10 +103,14 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
-## Default Administrator Credentials
-- **Email**: `admin@kavach.infra`
-- **Password**: `Admin123!`
-- **Role**: Administrator
+## Administrator Account & Security
+- **No hardcoded default credentials or secrets** exist in the repository.
+- **Initial Admin**: Provisioned automatically during Alembic migration `004_create_admin_account` using your configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` environment variables (passwords stored hashed with bcrypt).
+- **Manual Admin Script**: You can also provision or reset an administrator account via CLI:
+  ```powershell
+  python -m app.scripts.create_first_admin <email> <password>
+  ```
+- **JWT & Encryption**: `JWT_SECRET` and `ENCRYPTION_KEY` must be supplied via environment variables; the backend validates their presence at startup.
 
 ---
 

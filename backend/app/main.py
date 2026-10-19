@@ -45,52 +45,12 @@ logger = logging.getLogger("kavach_connect")
 
 async def init_db_and_seed():
     """Presupposes PostgreSQL database and Alembic migrations already exist.
-    The application does not create or alter tables at startup.
-    Seeds initial administrator account and default reminder workflows if not present.
+    The administrator account is created exclusively via Alembic migration or management script.
+    Seeds default reminder workflows if not present.
     """
     try:
         async with AsyncSessionLocal() as db:
-            stmt = select(User).where(User.email == "admin@kavach.infra")
-            res = await db.execute(stmt)
-            existing_admin = res.scalar_one_or_none()
-
-            if not existing_admin:
-                logger.info("Seeding initial administrator account (admin@kavach.infra)...")
-                admin = User(
-                    name="Admin",
-                    email="admin@kavach.infra",
-                    username="admin",
-                    password_hash=get_password_hash("Admin123!"),
-                    role="admin",
-                    status="active",
-                    timezone="Asia/Kolkata",
-                )
-                db.add(admin)
-                await db.flush()
-
-                # Seed default working hours
-                schedule = AvailabilitySchedule(
-                    user_id=admin.id,
-                    name="Working Hours",
-                    is_default=True,
-                )
-                db.add(schedule)
-                await db.flush()
-
-                # Mon(1) to Fri(5) 9am to 5pm
-                for dow in range(1, 6):
-                    rule = AvailabilityRule(
-                        schedule_id=schedule.id,
-                        day_of_week=dow,
-                        start_time=time(9, 0),
-                        end_time=time(17, 0),
-                    )
-                    db.add(rule)
-
-                await db.commit()
-                logger.info("Admin account seeded successfully (admin@kavach.infra / Admin123!).")
-
-            # Seed default workflows if none exist
+            # Seed default workflows if none exist and an admin exists
             wf_stmt = select(Workflow).limit(1)
             wf_res = await db.execute(wf_stmt)
             if not wf_res.scalar_one_or_none():

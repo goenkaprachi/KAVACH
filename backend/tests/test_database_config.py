@@ -72,3 +72,59 @@ def test_cors_middleware_no_wildcard():
             assert "*" not in allow_origins
             break
 
+
+def test_empty_jwt_secret_rejected():
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            DATABASE_URL="postgresql://user:pass@localhost:5432/kavach",
+            JWT_SECRET="",
+            ENCRYPTION_KEY="dGhpcy1pcy1hLXNhbXBsZS1mZXJuZXQta2V5LTMyYnl0ZXM=",
+        )
+    assert "JWT_SECRET environment variable is missing" in str(exc_info.value)
+
+
+def test_empty_encryption_key_rejected():
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            DATABASE_URL="postgresql://user:pass@localhost:5432/kavach",
+            JWT_SECRET="valid_secret_key_12345",
+            ENCRYPTION_KEY="",
+        )
+    assert "ENCRYPTION_KEY environment variable is missing" in str(exc_info.value)
+
+
+def test_valid_secrets_accepted():
+    s = Settings(
+        DATABASE_URL="postgresql://user:pass@localhost:5432/kavach",
+        JWT_SECRET="my_custom_jwt_secret_123",
+        ENCRYPTION_KEY="dGhpcy1pcy1hLXNhbXBsZS1mZXJuZXQta2V5LTMyYnl0ZXM=",
+    )
+    assert s.JWT_SECRET == "my_custom_jwt_secret_123"
+    assert s.ENCRYPTION_KEY == "dGhpcy1pcy1hLXNhbXBsZS1mZXJuZXQta2V5LTMyYnl0ZXM="
+
+
+def test_migration_004_requires_admin_credentials(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    migration_path = (
+        Path(__file__).resolve().parent.parent / "alembic" / "versions" / "004_create_admin_account.py"
+    )
+    spec = importlib.util.spec_from_file_location("migration_004", migration_path)
+    mig_004 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mig_004)
+
+    monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        mig_004.upgrade()
+    assert "ADMIN_EMAIL environment variable is missing" in str(exc_info.value)
+
+    monkeypatch.setenv("ADMIN_EMAIL", "admin@company.com")
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+    with pytest.raises(RuntimeError) as exc_info:
+        mig_004.upgrade()
+    assert "ADMIN_PASSWORD environment variable is missing" in str(exc_info.value)
+
+

@@ -92,7 +92,7 @@ async def run_db_verification():
     print("\n[3/7] Verifying seeded administrator account...")
     try:
         async with AsyncSessionLocal() as session:
-            stmt = select(User).where(User.email == "admin@kavach.infra")
+            stmt = select(User).where(User.role == "admin").limit(1)
             res = await session.execute(stmt)
             admin = res.scalar_one_or_none()
             if admin:
@@ -105,7 +105,7 @@ async def run_db_verification():
                 results.append(("Admin Account", True, f"Verified active admin ({admin.email})"))
             else:
                 print("  [ERR] Admin account not found!")
-                results.append(("Admin Account", False, "admin@kavach.infra missing"))
+                results.append(("Admin Account", False, "No user with role='admin' found"))
     except Exception as e:
         print(f"  [ERR] Admin verification error: {e}")
         results.append(("Admin Account", False, str(e)))
@@ -253,10 +253,13 @@ async def run_db_verification():
     try:
         async with AsyncSessionLocal() as session:
             try:
+                existing_res = await session.execute(select(User).limit(1))
+                existing_u = existing_res.scalar_one_or_none()
+                dup_email = existing_u.email if existing_u else "duplicate@kavach.infra"
                 dup_user = User(
                     name="Duplicate",
-                    email="admin@kavach.infra",
-                    username="dup_admin",
+                    email=dup_email,
+                    username=f"dup_{uuid.uuid4().hex[:6]}",
                     role="employee"
                 )
                 session.add(dup_user)
