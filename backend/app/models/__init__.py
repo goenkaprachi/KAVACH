@@ -8,6 +8,7 @@ from app.models.notification import NotificationTemplate, Workflow, Notification
 from app.models.routing_form import RoutingForm
 from app.models.webhook import Webhook, WebhookLog
 from app.models.system_setting import SystemSetting
+from app.models.rate_limit import LoginRateLimit
 
 __all__ = [
     "Base",
@@ -30,4 +31,5 @@ __all__ = [
     "Webhook",
     "WebhookLog",
     "SystemSetting",
+    "LoginRateLimit",
 ]

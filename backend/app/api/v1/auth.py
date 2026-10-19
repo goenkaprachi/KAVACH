@@ -3,7 +3,7 @@ import urllib.parse
 from datetime import datetime, time, timezone, timedelta
 from typing import Optional, Tuple
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,7 @@ from app.core.security import (
 from app.models.user import User
 from app.models.availability import AvailabilitySchedule, AvailabilityRule
 from app.models.integration import MeetingProviderConfig
+from app.services.rate_limiter import LoginRateLimiter
 from app.schemas.auth import (
     Token,
     TokenRefreshRequest,
@@ -39,28 +40,51 @@ from app.api.deps import get_current_user, require_employee, require_admin
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+        if client_ip:
+            return client_ip
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip and real_ip.strip():
+        return real_ip.strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "127.0.0.1"
+
+
 @router.post("/login", response_model=Token)
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
+    email = form_data.username.lower().strip()
+    client_ip = get_client_ip(request)
+
+    # 1. Rate limiting check: verify account or IP is not currently locked out
+    await LoginRateLimiter.check_rate_limit(db, email, client_ip)
+
     # Form_data uses username field for email
-    stmt = select(User).where(User.email == form_data.username.lower().strip())
+    stmt = select(User).where(User.email == email)
     res = await db.execute(stmt)
     user = res.scalar_one_or_none()
 
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        # 2. Record failed attempt: tracks per account & IP.
+        # Raises 429 if 10th attempt (locks for 15 min), 401 with warning if 9th attempt, 401 otherwise.
+        # Messages are identical whether user exists or not to prevent account enumeration.
+        await LoginRateLimiter.record_failed_attempt(db, email, client_ip)
 
     if user.status == "deactivated":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account has been deactivated. Please contact an administrator.",
         )
+
+    # 3. Successful authentication: reset failed attempts counter
+    await LoginRateLimiter.reset_rate_limit(db, email, client_ip)
 
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
     refresh_token = create_refresh_token(data={"sub": str(user.id), "role": user.role})

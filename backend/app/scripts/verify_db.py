@@ -49,7 +49,8 @@ async def run_db_verification():
         "event_types", "calendar_connections", "meeting_provider_configs",
         "bookings", "invitees", "notification_templates",
         "workflows", "notifications_log", "audit_logs",
-        "routing_forms", "system_settings", "webhooks", "webhook_logs"
+        "routing_forms", "system_settings", "webhooks", "webhook_logs",
+        "login_rate_limits"
     ]
     try:
         def get_tables(sync_conn):
