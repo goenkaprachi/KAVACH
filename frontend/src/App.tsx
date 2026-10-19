@@ -22,7 +22,6 @@ import { RoutingFormsPage } from './pages/RoutingFormsPage';
 import { PublicRoutingFormPage } from './pages/PublicRoutingFormPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { EmbedBookingPage } from './pages/EmbedBookingPage';
-import { WebhooksPage } from './pages/WebhooksPage';
 import { BrandingPage } from './pages/BrandingPage';
 
 const queryClient = new QueryClient({
@@ -84,7 +83,6 @@ export const App: React.FC = () => {
             <Route path="/event-types" element={<EventTypesPage />} />
             <Route path="/routing-forms" element={<RoutingFormsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/webhooks" element={<WebhooksPage />} />
             <Route path="/availability" element={<AvailabilityPage />} />
             <Route path="/profile" element={<ProfilePage />} />
 

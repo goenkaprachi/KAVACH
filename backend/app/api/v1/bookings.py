@@ -417,39 +417,7 @@ async def create_booking(
     except Exception as sms_err:
         logger.debug("SMS notification skipped: %s", sms_err)
 
-    # 6. Dispatch Webhooks asynchronously
-    try:
-        from app.services.webhook_service import webhook_service
-        wh_payload = {
-            "booking_id": str(new_booking.id),
-            "booking_reference": new_booking.booking_reference,
-            "title": new_booking.title,
-            "start_time": new_booking.start_time.isoformat(),
-            "end_time": new_booking.end_time.isoformat(),
-            "status": new_booking.status,
-            "meeting_provider": new_booking.meeting_provider,
-            "meeting_join_url": new_booking.meeting_join_url,
-            "host": {
-                "id": str(employee.id),
-                "name": employee.name,
-                "email": employee.email,
-                "username": employee.username,
-            },
-            "invitee": {
-                "name": req.invitee_name,
-                "email": req.invitee_email,
-                "timezone": req.invitee_timezone,
-                "answers": req.custom_answers or {},
-            },
-        }
-        await webhook_service.dispatch_event(
-            user_id=employee.id,
-            event="booking.created",
-            payload=wh_payload,
-            db=db,
-        )
-    except Exception as wh_err:
-        logger.warning(f"Failed to dispatch booking.created webhook: {wh_err}")
+
 
     return build_booking_response(
         b=new_booking,
@@ -722,25 +690,7 @@ async def cancel_booking(
         except Exception:
             pass
 
-    # Dispatch Webhooks for cancellation
-    try:
-        from app.services.webhook_service import webhook_service
-        wh_payload = {
-            "booking_id": str(booking.id),
-            "booking_reference": booking.booking_reference,
-            "status": "cancelled",
-            "cancellation_reason": req.reason,
-            "cancelled_by": cancelled_by,
-            "host_id": str(booking.employee_id),
-        }
-        await webhook_service.dispatch_event(
-            user_id=booking.employee_id,
-            event="booking.cancelled",
-            payload=wh_payload,
-            db=db,
-        )
-    except Exception as wh_err:
-        logger.warning(f"Failed to dispatch booking.cancelled webhook: {wh_err}")
+
 
     # Dispatch cancellation SMS to invitees
     try:

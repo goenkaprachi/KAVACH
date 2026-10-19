@@ -30,8 +30,6 @@ from app.api.v1.admin_templates import router as admin_templates_router
 from app.api.v1.workflows import router as workflows_router
 from app.api.v1.routing_forms import router as routing_forms_router
 from app.api.v1.analytics import router as analytics_router
-from app.api.v1.webhooks import router as webhooks_router
-from app.api.v1.payments import router as payments_router
 from app.api.v1.branding import router as branding_router
 from app.api.v1.system import router as system_router
 from app.services.reminder_service import reminder_service
@@ -179,8 +177,6 @@ api_v1.include_router(admin_templates_router)
 api_v1.include_router(workflows_router)
 api_v1.include_router(routing_forms_router)
 api_v1.include_router(analytics_router)
-api_v1.include_router(webhooks_router)
-api_v1.include_router(payments_router)
 api_v1.include_router(branding_router)
 api_v1.include_router(system_router)
 

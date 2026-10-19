@@ -25,7 +25,6 @@ import {
   BellRing,
   GitBranch,
   BarChart3,
-  Webhook as WebhookIcon,
   Palette,
 } from 'lucide-react';
 
@@ -58,7 +57,6 @@ const navCategories: NavCategory[] = [
       { to: '/event-types', label: 'Event Types', icon: Layers },
       { to: '/routing-forms', label: 'Routing Forms', icon: GitBranch },
       { to: '/analytics', label: 'Analytics & Intelligence', icon: BarChart3 },
-      { to: '/webhooks', label: 'Webhooks & API', icon: WebhookIcon },
       { to: '/availability', label: 'Availability', icon: Clock },
       { to: '/profile', label: 'My Profile', icon: User },
     ],

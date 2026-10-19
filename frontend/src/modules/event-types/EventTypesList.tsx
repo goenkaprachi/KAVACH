@@ -1092,72 +1092,7 @@ export const EventTypesList: React.FC = () => {
                 </div>
               </div>
 
-              {/* Paid Meeting Section */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <CreditCard className="h-4 w-4 text-violet-600" />
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Paid Meeting</h3>
-                  <span className="ml-2 text-[10px] font-semibold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">Optional</span>
-                </div>
-                <p className="text-[11px] text-slate-500">Charge invitees before they can confirm a booking. Price is stored in the smallest currency unit × 100 (e.g., ₹500 → 50000 paise).</p>
 
-                {/* Payment provider toggle */}
-                <div className="flex gap-2">
-                  {[
-                    { id: 'none', label: 'Free' },
-                    { id: 'razorpay', label: 'Razorpay' },
-                    { id: 'stripe', label: 'Stripe' },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setPaymentProvider(opt.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        paymentProvider === opt.id
-                          ? 'border-violet-500 bg-violet-50 text-violet-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {paymentProvider !== 'none' && (
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2 space-y-1">
-                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide">Price</label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                        <input
-                          type="number"
-                          min="1"
-                          step="0.01"
-                          value={priceAmount}
-                          onChange={(e) => setPriceAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                          placeholder="e.g. 500"
-                          className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide">Currency</label>
-                      <select
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400"
-                      >
-                        <option value="INR">INR ₹</option>
-                        <option value="USD">USD $</option>
-                        <option value="EUR">EUR €</option>
-                        <option value="GBP">GBP £</option>
-                        <option value="SGD">SGD S$</option>
-                        <option value="AED">AED د.إ</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
 
               <div className="modal-footer">
                 <button
@@ -1621,68 +1556,7 @@ export const EventTypesList: React.FC = () => {
                   )}
                 </div>
 
-                {/* Paid Meeting Section - Edit */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <CreditCard className="h-4 w-4 text-violet-600" />
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Paid Meeting</h3>
-                    <span className="ml-2 text-[10px] font-semibold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">Optional</span>
-                  </div>
-                  <div className="flex gap-2">
-                    {[
-                      { id: 'none', label: 'Free' },
-                      { id: 'razorpay', label: 'Razorpay' },
-                      { id: 'stripe', label: 'Stripe' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setEditPaymentProvider(opt.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                          editPaymentProvider === opt.id
-                            ? 'border-violet-500 bg-violet-50 text-violet-700'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  {editPaymentProvider !== 'none' && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="col-span-2 space-y-1">
-                        <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide">Price</label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                          <input
-                            type="number"
-                            min="1"
-                            step="0.01"
-                            value={editPriceAmount}
-                            onChange={(e) => setEditPriceAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                            placeholder="e.g. 500"
-                            className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide">Currency</label>
-                        <select
-                          value={editCurrency}
-                          onChange={(e) => setEditCurrency(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400"
-                        >
-                          <option value="INR">INR ₹</option>
-                          <option value="USD">USD $</option>
-                          <option value="EUR">EUR €</option>
-                          <option value="GBP">GBP £</option>
-                          <option value="SGD">SGD S$</option>
-                          <option value="AED">AED د.إ</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </div>
+
 
                 {updateMutation.isError && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">

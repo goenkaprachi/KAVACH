@@ -693,27 +693,12 @@ export const PublicBookingPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Payment notice */}
-                {eventType?.payment_provider && eventType.payment_provider !== 'none' && eventType.price_amount && (
-                  <div className="rounded-xl bg-violet-50 border border-violet-200 px-4 py-3 text-xs text-violet-800 font-medium">
-                    💳 <strong>Payment required:</strong>{' '}
-                    {eventType.currency === 'INR' ? '₹' : eventType.currency === 'USD' ? '$' : eventType.currency === 'EUR' ? '€' : eventType.currency + ' '}
-                    {(eventType.price_amount / 100).toFixed(2)} via{' '}
-                    {eventType.payment_provider === 'razorpay' ? 'Razorpay' : 'Stripe'}.
-                    You will be redirected to complete payment after scheduling.
-                  </div>
-                )}
-
                 <button
                   type="submit"
                   disabled={bookMutation.isPending}
                   className="w-full mt-2 py-2.5 px-4 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white text-xs font-bold rounded-xl shadow-md shadow-cyan-500/20 transition-all disabled:opacity-50"
                 >
-                  {bookMutation.isPending
-                    ? 'Confirming...'
-                    : eventType?.payment_provider && eventType.payment_provider !== 'none'
-                    ? 'Continue to Payment →'
-                    : 'Schedule Meeting'}
+                  {bookMutation.isPending ? 'Confirming...' : 'Schedule Meeting'}
                 </button>
               </form>
             </div>

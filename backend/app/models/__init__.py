@@ -6,7 +6,6 @@ from app.models.booking import Booking, Invitee
 from app.models.integration import CalendarConnection, MeetingProviderConfig
 from app.models.notification import NotificationTemplate, Workflow, NotificationsLog, AuditLog
 from app.models.routing_form import RoutingForm
-from app.models.webhook import Webhook, WebhookLog
 from app.models.system_setting import SystemSetting
 from app.models.rate_limit import LoginRateLimit
 
@@ -28,8 +27,6 @@ __all__ = [
     "NotificationsLog",
     "AuditLog",
     "RoutingForm",
-    "Webhook",
-    "WebhookLog",
     "SystemSetting",
     "LoginRateLimit",
 ]
