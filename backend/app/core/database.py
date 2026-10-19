@@ -5,29 +5,28 @@ from app.core.config import settings
 
 db_url = settings.DATABASE_POOLED_URL or settings.DATABASE_URL
 
-if db_url.startswith("sqlite"):
-    engine = create_async_engine(
-        db_url,
-        echo=False,
-        future=True,
-        connect_args={"check_same_thread": False},
+if not db_url or "sqlite" in db_url.lower() or not db_url.startswith("postgresql"):
+    raise RuntimeError(
+        "DATABASE_URL is missing or is not a PostgreSQL connection string. "
+        "The application requires PostgreSQL and presupposes Alembic migrations have already run. "
+        "SQLite fallback is disabled."
     )
-else:
-    connect_args = {}
-    if settings.DATABASE_SSL_CA_PATH:
-        ssl_context = ssl.create_default_context(cafile=settings.DATABASE_SSL_CA_PATH)
-        connect_args["ssl"] = ssl_context
 
-    engine = create_async_engine(
-        db_url,
-        echo=False,
-        future=True,
-        pool_size=10,
-        max_overflow=20,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        connect_args=connect_args,
-    )
+connect_args = {}
+if settings.DATABASE_SSL_CA_PATH:
+    ssl_context = ssl.create_default_context(cafile=settings.DATABASE_SSL_CA_PATH)
+    connect_args["ssl"] = ssl_context
+
+engine = create_async_engine(
+    db_url,
+    echo=False,
+    future=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    connect_args=connect_args,
+)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

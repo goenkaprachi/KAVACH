@@ -42,18 +42,16 @@ async def run_db_verification():
         return results
 
     # 2. Schema Table Audit
-    print("\n[2/7] Verifying database schema & tables...")
+    print("\n[2/7] Verifying database schema & tables (from Alembic)...")
     expected_tables = [
         "users", "teams", "team_members",
         "availability_schedules", "availability_rules", "availability_overrides",
         "event_types", "calendar_connections", "meeting_provider_configs",
         "bookings", "invitees", "notification_templates",
-        "workflows", "notifications_log", "audit_logs"
+        "workflows", "notifications_log", "audit_logs",
+        "routing_forms", "system_settings", "webhooks", "webhook_logs"
     ]
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
         def get_tables(sync_conn):
             from sqlalchemy import inspect
             inspector = inspect(sync_conn)
@@ -70,7 +68,22 @@ async def run_db_verification():
             results.append(("Table Schema", True, f"All {len(expected_tables)} tables present"))
         else:
             print(f"  [ERR] Missing tables: {missing}")
+            print("        Please run: alembic upgrade head")
             results.append(("Table Schema", False, f"Missing: {missing}"))
+
+        # Verify PostgreSQL anti-double-booking exclusion constraint
+        async with engine.connect() as conn:
+            c_res = await conn.execute(text(
+                "SELECT conname FROM pg_constraint WHERE conname = 'excl_booking_employee_timeslot'"
+            ))
+            c_name = c_res.scalar_one_or_none()
+            if c_name:
+                print("  [OK] Anti-double-booking exclusion constraint verified (excl_booking_employee_timeslot).")
+                results.append(("Exclusion Constraint", True, "excl_booking_employee_timeslot active"))
+            else:
+                print("  [ERR] Anti-double-booking exclusion constraint missing on bookings table!")
+                print("        Please run: alembic upgrade head")
+                results.append(("Exclusion Constraint", False, "excl_booking_employee_timeslot missing"))
     except Exception as e:
         print(f"  [ERR] Schema verification error: {e}")
         results.append(("Table Schema", False, str(e)))

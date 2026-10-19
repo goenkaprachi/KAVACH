@@ -44,60 +44,11 @@ logger = logging.getLogger("kavach_connect")
 
 
 async def init_db_and_seed():
-    """Ensures database tables are present and seeds initial admin account."""
+    """Presupposes PostgreSQL database and Alembic migrations already exist.
+    The application does not create or alter tables at startup.
+    Seeds initial administrator account and default reminder workflows if not present.
+    """
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            try:
-                await conn.execute(text("ALTER TABLE event_types ADD COLUMN allowed_locations JSON"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE event_types ADD COLUMN assigned_user_ids JSON"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE event_types ADD COLUMN booking_type VARCHAR(64) DEFAULT 'one_on_one'"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE event_types ADD COLUMN group_capacity INTEGER"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE event_types ADD COLUMN price_amount INTEGER"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE event_types ADD COLUMN currency VARCHAR(8) DEFAULT 'INR'"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE event_types ADD COLUMN payment_provider VARCHAR(32) DEFAULT 'none'"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE bookings ADD COLUMN payment_status VARCHAR(32) DEFAULT 'free'"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE bookings ADD COLUMN payment_amount INTEGER"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE bookings ADD COLUMN payment_currency VARCHAR(8)"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE bookings ADD COLUMN payment_id VARCHAR(128)"))
-            except Exception:
-                pass
-            try:
-                await conn.execute(text("ALTER TABLE bookings ADD COLUMN payment_order_id VARCHAR(128)"))
-            except Exception:
-                pass
-        logger.info("Database tables verified/created successfully.")
-
         async with AsyncSessionLocal() as db:
             stmt = select(User).where(User.email == "admin@kavach.infra")
             res = await db.execute(stmt)

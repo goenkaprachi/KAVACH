@@ -14,11 +14,44 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
 
-    # Database - Defaults to local SQLite for instant zero-friction development/demo,
-    # or connects to Aiven for PostgreSQL when configured in .env.
-    DATABASE_URL: str = "sqlite+aiosqlite:///./kavach.db"
+    # Database: PostgreSQL and Alembic only.
+    # SQLite fallback is strictly prohibited.
+    DATABASE_URL: str = ""
     DATABASE_POOLED_URL: str | None = None
     DATABASE_SSL_CA_PATH: str | None = None
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError(
+                "DATABASE_URL is missing. The application requires a PostgreSQL database with Alembic migrations applied."
+            )
+        v = v.strip()
+        if "sqlite" in v.lower():
+            raise ValueError(
+                "SQLite is not supported. The application requires PostgreSQL with Alembic migrations applied. SQLite fallback has been removed."
+            )
+        if not (v.startswith("postgresql://") or v.startswith("postgresql+asyncpg://")):
+            raise ValueError(
+                f"DATABASE_URL must be a PostgreSQL connection string (postgresql+asyncpg://... or postgresql://...). Got: {v[:20]}..."
+            )
+        if v.startswith("postgresql://"):
+            v = "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
+
+    @field_validator("DATABASE_POOLED_URL")
+    @classmethod
+    def validate_pooled_url(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = v.strip()
+            if "sqlite" in v.lower():
+                raise ValueError("SQLite is not supported for DATABASE_POOLED_URL. PostgreSQL is required.")
+            if not (v.startswith("postgresql://") or v.startswith("postgresql+asyncpg://")):
+                raise ValueError("DATABASE_POOLED_URL must be a PostgreSQL connection string.")
+            if v.startswith("postgresql://"):
+                v = "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
 
     # Security
     JWT_SECRET: str = "kavach_connect_insecure_default_secret_key_change_me_12345"

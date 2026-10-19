@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from sqlalchemy import String, Text, DateTime, ForeignKey, Index, Uuid, JSON, Boolean, Integer
+from sqlalchemy import String, Text, DateTime, ForeignKey, Index, Uuid, JSON, Boolean, Integer, text
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, generate_uuid, generate_booking_reference, utc_now
 
@@ -50,6 +51,13 @@ class Booking(Base):
 
     __table_args__ = (
         Index("ix_bookings_emp_time_status", "employee_id", "start_time", "end_time", "status"),
+        ExcludeConstraint(
+            ("employee_id", "="),
+            (text("tstzrange(start_time, end_time)"), "&&"),
+            where=text("status = 'confirmed'"),
+            name="excl_booking_employee_timeslot",
+            using="gist",
+        ),
     )
 
 
