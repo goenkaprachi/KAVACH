@@ -122,6 +122,47 @@ SYSTEM_DEFAULT_TEMPLATES = {
     </div>
 </div>"""
     },
+    "booking_cancelled_out_of_office": {
+        "name": "Meeting Cancelled - Out of Office (Attendee)",
+        "subject": "Cancelled: {event_title} with {host_name} (Host Out of Office)",
+        "body": """<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
+    <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-block; background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 50%; padding: 12px; margin-bottom: 8px;">
+            <span style="font-size: 28px;">🏖️</span>
+        </div>
+        <h2 style="color: #e11d48; margin: 4px 0 0 0; font-size: 20px; font-weight: 700;">Meeting Cancelled — Host Out of Office</h2>
+        <p style="color: #64748b; font-size: 13px; margin-top: 4px;">Your scheduled appointment could not take place due to an unexpected absence.</p>
+    </div>
+
+    <p style="font-size: 14px; line-height: 1.5;">Hi <strong>{attendee_name}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155;">
+        Please note that <strong>{host_name}</strong> is <strong>out of office for the day</strong> and cannot attend your meeting <strong>{event_title}</strong> originally scheduled for <strong>{start_time}</strong>.
+    </p>
+
+    {custom_message_block}
+
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 4px 0; font-size: 13px;"><strong>Original Appointment:</strong> {event_title}</p>
+        <p style="margin: 4px 0; font-size: 13px;"><strong>Originally Scheduled Time:</strong> <span style="text-decoration: line-through; color: #94a3b8;">{start_time}</span></p>
+        <p style="margin: 4px 0; font-size: 13px;"><strong>Host:</strong> {host_name} ({host_email})</p>
+    </div>
+
+    <div style="margin: 28px 0; padding: 20px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; text-align: center;">
+        <h3 style="color: #166534; font-size: 15px; margin: 0 0 8px 0; font-weight: 700;">Pick a New Slot at Your Convenience</h3>
+        <p style="color: #15803d; font-size: 13px; margin: 0 0 16px 0; line-height: 1.4;">
+            No login required! You can directly select a new date and time that works best for your schedule.
+        </p>
+        <a href="{reschedule_url}" style="display: inline-block; background-color: #0284c7; color: #ffffff; padding: 12px 24px; font-size: 13px; font-weight: bold; text-decoration: none; border-radius: 8px; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);">
+            Reschedule / Pick a New Slot &rarr;
+        </a>
+    </div>
+
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
+        <p style="color: #94a3b8; font-size: 11px; margin: 0;">If you have any questions, you can reply directly to {host_email}.</p>
+        <p style="color: #cbd5e1; font-size: 10px; margin-top: 4px;">Powered by Kavach Connect</p>
+    </div>
+</div>"""
+    },
     "internal_meeting_invite": {
         "name": "Internal Meeting Invitation (Colleague)",
         "subject": "Internal Meeting: {event_title} organized by {host_name}",
@@ -637,6 +678,54 @@ class EmailService:
             recipient_email=employee.email,
             subject=subj_h,
             html_body=body_h,
+        )
+
+    @staticmethod
+    async def send_out_of_office_cancellation(
+        booking: Any,
+        invitee: Any,
+        event_type: Any,
+        employee: Any,
+        custom_message: Optional[str] = None,
+        db: Optional[Any] = None,
+    ) -> None:
+        is_external = getattr(booking, "event_type_id", None) is not None or event_type is not None
+        event_title = "Meeting with Kavach" if is_external else (getattr(booking, "title", None) or (event_type.title if event_type else "Meeting"))
+        start_fmt = booking.start_time.strftime("%A, %B %d, %Y at %I:%M %p UTC")
+
+        msg_clean = (custom_message or "").strip()
+        if msg_clean:
+            custom_message_block = f"""<div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 6px; margin: 16px 0;">
+    <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: bold; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px;">Message from {employee.name}:</p>
+    <p style="margin: 0; font-size: 13px; color: #78350f; font-style: italic;">&ldquo;{msg_clean}&rdquo;</p>
+</div>"""
+        else:
+            custom_message_block = ""
+
+        token = getattr(invitee, "cancellation_token", "")
+        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+        reschedule_url = f"{frontend_base}/booking/manage/{token}?tab=reschedule" if token else f"{frontend_base}"
+        manage_url = f"{frontend_base}/booking/manage/{token}" if token else f"{frontend_base}"
+
+        ctx = {
+            "event_title": event_title,
+            "attendee_name": invitee.name,
+            "attendee_email": invitee.email,
+            "host_name": employee.name,
+            "host_email": employee.email,
+            "start_time": start_fmt,
+            "custom_message": msg_clean,
+            "custom_message_block": custom_message_block,
+            "reschedule_url": reschedule_url,
+            "manage_url": manage_url,
+            "cancellation_token": str(token),
+        }
+
+        subj, body = await EmailService.get_rendered_template("booking_cancelled_out_of_office", ctx, db)
+        await EmailService.send_email(
+            recipient_email=invitee.email,
+            subject=subj,
+            html_body=body,
         )
 
     @staticmethod

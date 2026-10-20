@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { COMMON_TIMEZONES } from '../lib/utils';
@@ -37,9 +37,11 @@ import {
 
 export const InviteeManageBookingPage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'details' | 'reschedule' | 'cancel'>('details');
+  const initialTab = searchParams.get('tab') === 'reschedule' ? 'reschedule' : 'details';
+  const [activeTab, setActiveTab] = useState<'details' | 'reschedule' | 'cancel'>(initialTab);
   const [cancelReason, setCancelReason] = useState('');
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
@@ -402,6 +404,23 @@ export const InviteeManageBookingPage: React.FC = () => {
             </div>
           )}
 
+          {/* Action Button for Cancelled Bookings to Reschedule */}
+          {isCancelled && activeTab === 'details' && (
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setActionError(null);
+                  setActionSuccess(null);
+                  setActiveTab('reschedule');
+                }}
+                className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-500/20 transition-all flex items-center justify-center space-x-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Pick a New Slot / Reschedule Meeting</span>
+              </button>
+            </div>
+          )}
+
           {/* Cancel Confirmation View */}
           {!isCancelled && activeTab === 'cancel' && (
             <div className="border border-red-200 bg-red-50/50 rounded-xl p-5 space-y-4">
@@ -454,7 +473,7 @@ export const InviteeManageBookingPage: React.FC = () => {
           )}
 
           {/* Reschedule View */}
-          {!isCancelled && activeTab === 'reschedule' && (
+          {activeTab === 'reschedule' && (
             <div className="border border-slate-200 rounded-xl p-5 space-y-4 bg-white">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">

@@ -64,3 +64,34 @@ class AvailabilityScheduleResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class OutOfOfficeBookingPreviewItem(BaseModel):
+    id: uuid.UUID
+    title: str
+    start_time: datetime
+    end_time: datetime
+    meeting_provider: Optional[str] = None
+    invitee_names: List[str] = []
+    invitee_emails: List[str] = []
+
+
+class OutOfOfficePreviewResponse(BaseModel):
+    date: date
+    bookings_count: int
+    bookings: List[OutOfOfficeBookingPreviewItem] = []
+
+
+class MarkOutOfOfficeRequest(BaseModel):
+    date: date
+    custom_message: Optional[str] = None
+    schedule_id: Optional[uuid.UUID] = None
+
+
+class MarkOutOfOfficeResponse(BaseModel):
+    date: date
+    cancelled_bookings_count: int
+    cancelled_booking_ids: List[uuid.UUID] = []
+    message: str
+    override_ids: List[uuid.UUID] = []
+

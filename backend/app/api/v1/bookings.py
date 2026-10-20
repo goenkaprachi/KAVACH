@@ -909,9 +909,15 @@ async def reschedule_booking(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
 
     if old_booking.status == "cancelled":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot reschedule a cancelled booking.")
-
-    if old_booking.status != "confirmed":
+        is_allowed_cancelled_reschedule = (
+            req.cancellation_token is not None and (
+                old_booking.cancelled_by in ["employee", "host", "system"] or
+                (old_booking.cancellation_reason and "out of office" in old_booking.cancellation_reason.lower())
+            )
+        )
+        if not is_allowed_cancelled_reschedule:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot reschedule a cancelled booking.")
+    elif old_booking.status != "confirmed":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking is not active")
 
     if current_user and (current_user.id == old_booking.employee_id or current_user.role == "admin"):

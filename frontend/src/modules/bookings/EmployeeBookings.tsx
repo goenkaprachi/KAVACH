@@ -43,6 +43,7 @@ import {
   FileText,
   BellRing,
   UserCheck,
+  CalendarOff,
 } from 'lucide-react';
 import { MeetingDetailsModal } from './MeetingDetailsModal';
 import { getAttendeePhone } from '../../lib/utils';
@@ -50,6 +51,7 @@ import { EditAttendeeModal } from './EditAttendeeModal';
 import { AdminDeleteBookingModal } from './AdminDeleteBookingModal';
 import { ScheduleInternalMeetingModal } from './ScheduleInternalMeetingModal';
 import { MeetingOutcomeModal } from './MeetingOutcomeModal';
+import { OutOfOfficeModal } from '../availability/OutOfOfficeModal';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Card } from '../../components/Card';
 
@@ -80,6 +82,7 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
   const [deletingBooking, setDeletingBooking] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [scheduleInternalOpen, setScheduleInternalOpen] = useState(false);
+  const [oooModalOpen, setOooModalOpen] = useState(false);
   const [outcomeBooking, setOutcomeBooking] = useState<any | null>(null);
   const [editingAttendeeBooking, setEditingAttendeeBooking] = useState<any | null>(null);
 
@@ -675,6 +678,15 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
         <div className="flex items-center gap-2.5">
           <button
             type="button"
+            onClick={() => setOooModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 shadow-md shadow-rose-500/20 transition-all cursor-pointer"
+          >
+            <CalendarOff className="h-4 w-4" />
+            <span>Mark Out of Office (Leave)</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setScheduleInternalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
           >
@@ -1093,6 +1105,13 @@ export const EmployeeBookings: React.FC<EmployeeBookingsProps> = ({ activeTab = 
         booking={editingAttendeeBooking}
         isOpen={Boolean(editingAttendeeBooking)}
         onClose={() => setEditingAttendeeBooking(null)}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Out of Office / Leave Modal */}
+      <OutOfOfficeModal
+        isOpen={oooModalOpen}
+        onClose={() => setOooModalOpen(false)}
         onSuccess={() => refetch()}
       />
     </div>
