@@ -17,19 +17,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "login_rate_limits",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
-        sa.Column("key", sa.String(256), nullable=False, unique=True),
-        sa.Column("failed_attempts", sa.Integer(), server_default="0", nullable=False),
-        sa.Column("first_failed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("last_failed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("locked_until", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-    )
-    op.create_index("ix_login_rate_limits_key", "login_rate_limits", ["key"])
-    op.create_index("ix_login_rate_limits_locked_until", "login_rate_limits", ["locked_until"])
+    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    if "login_rate_limits" not in insp.get_table_names():
+        op.create_table(
+            "login_rate_limits",
+            sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
+            sa.Column("key", sa.String(256), nullable=False, unique=True),
+            sa.Column("failed_attempts", sa.Integer(), server_default="0", nullable=False),
+            sa.Column("first_failed_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("last_failed_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("locked_until", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        )
+        op.create_index("ix_login_rate_limits_key", "login_rate_limits", ["key"])
+        op.create_index("ix_login_rate_limits_locked_until", "login_rate_limits", ["locked_until"])
 
 
 def downgrade() -> None:

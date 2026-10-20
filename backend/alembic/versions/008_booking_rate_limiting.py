@@ -17,17 +17,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "booking_rate_limits",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
-        sa.Column("key", sa.String(256), nullable=False),
-        sa.Column("count", sa.Integer(), server_default="1", nullable=False),
-        sa.Column("window_start", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("last_request_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-    )
-    op.create_index("ix_booking_rate_limits_key", "booking_rate_limits", ["key"], unique=True)
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    if "booking_rate_limits" not in insp.get_table_names():
+        op.create_table(
+            "booking_rate_limits",
+            sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
+            sa.Column("key", sa.String(256), nullable=False),
+            sa.Column("count", sa.Integer(), server_default="1", nullable=False),
+            sa.Column("window_start", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("last_request_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        )
+        op.create_index("ix_booking_rate_limits_key", "booking_rate_limits", ["key"], unique=True)
 
 
 def downgrade() -> None:

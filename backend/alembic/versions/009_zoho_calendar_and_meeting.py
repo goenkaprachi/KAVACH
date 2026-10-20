@@ -16,22 +16,31 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+
+    def add_col_if_missing(table_name: str, col: sa.Column):
+        cols = {c["name"] for c in insp.get_columns(table_name)}
+        if col.name not in cols:
+            op.add_column(table_name, col)
+
     # 1. Add Zoho columns to users
-    op.add_column("users", sa.Column("zoho_email", sa.String(256), nullable=True))
-    op.add_column("users", sa.Column("zoho_connected_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("users", sa.Column("zoho_access_token_encrypted", sa.Text(), nullable=True))
-    op.add_column("users", sa.Column("zoho_refresh_token_encrypted", sa.Text(), nullable=True))
-    op.add_column("users", sa.Column("zoho_token_expires_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("users", sa.Column("zoho_scopes", sa.Text(), nullable=True))
-    op.add_column("users", sa.Column("zoho_calendar_id", sa.String(256), nullable=True))
-    op.add_column("users", sa.Column("zoho_meeting_zsoid", sa.String(64), nullable=True))
-    op.add_column("users", sa.Column("zoho_meeting_zuid", sa.String(64), nullable=True))
-    op.add_column("users", sa.Column("zoho_meet_url", sa.Text(), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_email", sa.String(256), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_connected_at", sa.DateTime(timezone=True), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_access_token_encrypted", sa.Text(), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_refresh_token_encrypted", sa.Text(), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_token_expires_at", sa.DateTime(timezone=True), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_scopes", sa.Text(), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_calendar_id", sa.String(256), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_meeting_zsoid", sa.String(64), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_meeting_zuid", sa.String(64), nullable=True))
+    add_col_if_missing("users", sa.Column("zoho_meet_url", sa.Text(), nullable=True))
 
     # 2. Add external_calendar_event_id to bookings
-    op.add_column("bookings", sa.Column("external_calendar_event_id", sa.Text(), nullable=True))
+    add_col_if_missing("bookings", sa.Column("external_calendar_event_id", sa.Text(), nullable=True))
 
-    # 3. Drop deprecated Google columns from users
+    # 3. Drop deprecated Google columns from users if they exist
+    user_cols = {c["name"] for c in insp.get_columns("users")}
     for col in [
         "google_email",
         "google_connected_at",
@@ -41,7 +50,8 @@ def upgrade() -> None:
         "google_scopes",
         "google_meet_url",
     ]:
-        op.drop_column("users", col)
+        if col in user_cols:
+            op.drop_column("users", col)
 
     # 4. Migrate existing google_meet references to zoho_meeting
     op.execute("UPDATE meeting_provider_configs SET provider = 'zoho_meeting' WHERE provider = 'google_meet'")

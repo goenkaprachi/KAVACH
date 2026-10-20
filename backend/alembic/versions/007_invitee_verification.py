@@ -17,20 +17,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "booking_email_verifications",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
-        sa.Column("email", sa.String(256), nullable=False),
-        sa.Column("code", sa.String(16), nullable=False),
-        sa.Column("token", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("verified_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-    )
-    op.create_index("ix_booking_email_verifications_email", "booking_email_verifications", ["email"])
-    op.create_index("ix_booking_email_verifications_code", "booking_email_verifications", ["code"])
-    op.create_index("ix_booking_email_verifications_token", "booking_email_verifications", ["token"], unique=True)
-    op.create_index("ix_booking_email_verifications_expires_at", "booking_email_verifications", ["expires_at"])
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    if "booking_email_verifications" not in insp.get_table_names():
+        op.create_table(
+            "booking_email_verifications",
+            sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("uuid_generate_v4()")),
+            sa.Column("email", sa.String(256), nullable=False),
+            sa.Column("code", sa.String(16), nullable=False),
+            sa.Column("token", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("verified_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        )
+        op.create_index("ix_booking_email_verifications_email", "booking_email_verifications", ["email"])
+        op.create_index("ix_booking_email_verifications_code", "booking_email_verifications", ["code"])
+        op.create_index("ix_booking_email_verifications_token", "booking_email_verifications", ["token"], unique=True)
+        op.create_index("ix_booking_email_verifications_expires_at", "booking_email_verifications", ["expires_at"])
 
 
 def downgrade() -> None:
