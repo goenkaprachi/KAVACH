@@ -74,7 +74,7 @@ const ROUTE_LABELS: Record<string, { title: string; subtitle: string; category: 
   },
   '/profile': {
     title: 'Employee Profile',
-    subtitle: 'Manage your personal details, credentials, and connected Google account',
+    subtitle: 'Manage your personal details, credentials, and connected Zoho account',
     category: 'Account',
   },
   '/reminders': {

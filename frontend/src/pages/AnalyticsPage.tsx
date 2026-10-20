@@ -289,7 +289,7 @@ export const AnalyticsPage: React.FC = () => {
                     <div key={p.provider} className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                          {p.provider === 'google_meet' ? (
+                          {p.provider === 'zoho_meeting' ? (
                             <Video className="h-3.5 w-3.5 text-blue-600" />
                           ) : p.provider === 'phone' ? (
                             <Phone className="h-3.5 w-3.5 text-emerald-600" />

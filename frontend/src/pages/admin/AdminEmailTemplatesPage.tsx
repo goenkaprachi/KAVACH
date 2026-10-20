@@ -390,7 +390,7 @@ export const AdminEmailTemplatesPage: React.FC = () => {
                           .replace(/\{host_name\}/g, 'Sarah Connor')
                           .replace(/\{event_title\}/g, 'Architecture Sprint Planning')
                           .replace(/\{start_time\}/g, 'Thursday, Oct 15, 2026 at 10:00 AM UTC')
-                          .replace(/\{meeting_url\}/g, 'https://meet.google.com/abc-defg-hij')
+                          .replace(/\{meeting_url\}/g, 'https://meet.zoho.in/abc-defg-hij')
                           .replace(/\{reason\}/g, 'Schedule adjustment')
                           .replace(/\{cancellation_token\}/g, 'KV-DEMO-REF'),
                       }}

@@ -234,11 +234,11 @@ def generate_ics(
     if not resolved_join_url and location and location.startswith("http"):
         resolved_join_url = location
 
-    # Clean location text so calendar clients (Google, Apple, Outlook) don't treat URLs as map pins
+    # Clean location text so calendar clients (Apple, Outlook, Zoho, etc.) don't treat URLs as map pins
     clean_location = location
     if resolved_join_url:
-        if "meet.google.com" in resolved_join_url:
-            clean_location = "Google Meet"
+        if "meet.zoho" in resolved_join_url or "meeting.zoho" in resolved_join_url:
+            clean_location = "Zoho Meeting"
         elif "zoom.us" in resolved_join_url:
             clean_location = "Zoom Video Call"
         elif "meet.jit.si" in resolved_join_url or "jitsi" in resolved_join_url.lower():
@@ -252,7 +252,6 @@ def generate_ics(
     if resolved_join_url:
         conference_block = (
             f"URL:{resolved_join_url}\r\n"
-            f"X-GOOGLE-CONFERENCE:{resolved_join_url}\r\n"
             f"CONFERENCE;VALUE=URI;FEATURE=VIDEO:{resolved_join_url}\r\n"
         )
 
@@ -414,11 +413,11 @@ class EmailService:
         event_title = "Meeting with Kavach" if is_external else (getattr(booking, "title", None) or (event_type.title if event_type else "Meeting"))
         start_fmt = booking.start_time.strftime("%A, %B %d, %Y at %I:%M %p UTC")
         join_url = booking.meeting_join_url or ""
-        is_gmeet = "meet.google.com" in join_url
+        is_zoho = "meet.zoho" in join_url or "meeting.zoho" in join_url
 
         desc_lines = []
         if join_url.startswith("http"):
-            label = "GOOGLE MEET VIDEO CALL" if is_gmeet else "VIDEO CALL"
+            label = "ZOHO MEETING VIDEO CALL" if is_zoho else "VIDEO CALL"
             desc_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             desc_lines.append(f"📹 {label}")
             desc_lines.append(f"Join link: {join_url}")
@@ -441,8 +440,8 @@ class EmailService:
         desc_lines.append(f"Attendee: {invitee.name} ({invitee.email})")
         full_desc = "\n".join(desc_lines)
 
-        if is_gmeet:
-            ics_loc = "Google Meet"
+        if is_zoho:
+            ics_loc = "Zoho Meeting"
         elif booking.meeting_provider == "phone":
             ics_loc = "Phone Call"
         elif booking.meeting_provider == "in_person":
@@ -512,13 +511,13 @@ class EmailService:
         is_external = getattr(new_booking, "event_type_id", None) is not None or event_type is not None
         event_title = "Meeting with Kavach" if is_external else (getattr(new_booking, "title", None) or (event_type.title if event_type else "Meeting"))
         join_url = new_booking.meeting_join_url or ""
-        is_gmeet = "meet.google.com" in join_url
+        is_zoho = "meet.zoho" in join_url or "meeting.zoho" in join_url
         old_fmt = old_booking.start_time.strftime("%A, %B %d, %Y at %I:%M %p UTC")
         new_fmt = new_booking.start_time.strftime("%A, %B %d, %Y at %I:%M %p UTC")
 
         desc_lines = []
         if join_url.startswith("http"):
-            label = "GOOGLE MEET VIDEO CALL" if is_gmeet else "VIDEO CALL"
+            label = "ZOHO MEETING VIDEO CALL" if is_zoho else "VIDEO CALL"
             desc_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             desc_lines.append(f"📹 {label}")
             desc_lines.append(f"Join link: {join_url}")
@@ -542,8 +541,8 @@ class EmailService:
         desc_lines.append(f"Attendee: {invitee.name} ({invitee.email})")
         full_desc = "\n".join(desc_lines)
 
-        if is_gmeet:
-            ics_loc = "Google Meet"
+        if is_zoho:
+            ics_loc = "Zoho Meeting"
         elif new_booking.meeting_provider == "phone":
             ics_loc = "Phone Call"
         elif new_booking.meeting_provider == "in_person":
@@ -652,11 +651,11 @@ class EmailService:
         event_title = getattr(booking, "title", None) or "Internal Team Meeting"
         start_fmt = booking.start_time.strftime("%A, %B %d, %Y at %I:%M %p UTC")
         join_url = booking.meeting_join_url or ""
-        is_gmeet = "meet.google.com" in join_url
+        is_zoho = "meet.zoho" in join_url or "meeting.zoho" in join_url
 
         desc_lines = []
         if join_url.startswith("http"):
-            label = "GOOGLE MEET VIDEO CALL" if is_gmeet else "VIDEO CALL"
+            label = "ZOHO MEETING VIDEO CALL" if is_zoho else "VIDEO CALL"
             desc_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             desc_lines.append(f"📹 {label}")
             desc_lines.append(f"Join link: {join_url}")
@@ -670,7 +669,7 @@ class EmailService:
         ics = generate_ics(
             summary=f"{event_title} (Internal)",
             description=full_desc,
-            location="Google Meet" if is_gmeet else (join_url or "Online"),
+            location="Zoho Meeting" if is_zoho else (join_url or "Online"),
             start_time=booking.start_time,
             end_time=booking.end_time,
             uid=str(booking.id),

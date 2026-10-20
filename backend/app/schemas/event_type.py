@@ -17,7 +17,7 @@ class EventTypeBase(BaseModel):
     slug: str = Field(min_length=1, max_length=128)
     description: Optional[str] = None
     duration_minutes: int = Field(default=30, gt=0)
-    location_type: str = "jitsi"  # jitsi | google_meet | zoom | microsoft_teams | whereby | phone | in_person | custom | attendee_choice
+    location_type: str = "jitsi"  # jitsi | zoho_meeting | zoom | microsoft_teams | whereby | phone | in_person | custom | attendee_choice
     location_detail: Optional[str] = None
     allowed_locations: Optional[List[Dict[str, Any]]] = None
     booking_type: str = "one_on_one"

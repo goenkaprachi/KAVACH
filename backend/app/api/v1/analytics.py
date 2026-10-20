@@ -110,7 +110,7 @@ async def get_analytics_summary(
         provider_counts[p] = provider_counts.get(p, 0) + 1
 
     provider_labels = {
-        "google_meet": "Google Meet",
+        "zoho_meeting": "Zoho Meeting",
         "phone": "Phone Call",
         "in_person": "In-Person",
         "jitsi": "Browser Video",

@@ -15,7 +15,7 @@ import { AdminIntegrationsPage } from './pages/admin/AdminIntegrationsPage';
 import { AdminEmailTemplatesPage } from './pages/admin/AdminEmailTemplatesPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RemindersPage } from './pages/RemindersPage';
-import { GoogleOAuthCallbackPage } from './pages/GoogleOAuthCallbackPage';
+import { ZohoOAuthCallbackPage } from './pages/ZohoOAuthCallbackPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { BookingSuccessPage } from './pages/BookingSuccessPage';
 import { RoutingFormsPage } from './pages/RoutingFormsPage';
@@ -64,7 +64,7 @@ export const App: React.FC = () => {
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/accept-invite" element={<AcceptInvitePage />} />
-          <Route path="/auth/google/callback" element={<GoogleOAuthCallbackPage />} />
+          <Route path="/auth/zoho/callback" element={<ZohoOAuthCallbackPage />} />
           <Route path="/forms/:slug" element={<PublicRoutingFormPage />} />
           <Route path="/booking/manage/:token" element={<InviteeManageBookingPage />} />
           <Route path="/embed/:username/:slug" element={<EmbedBookingPage />} />

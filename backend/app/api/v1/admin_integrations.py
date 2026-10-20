@@ -12,11 +12,11 @@ from app.api.deps import require_admin
 
 router = APIRouter(prefix="/admin/integrations", tags=["Admin Integrations"])
 
-SUPPORTED_PROVIDERS = ["jitsi", "google_meet", "zoom", "microsoft_teams", "whereby"]
+SUPPORTED_PROVIDERS = ["jitsi", "zoho_meeting", "zoom", "microsoft_teams", "whereby"]
 
 PROVIDER_NAMES = {
     "jitsi": "Jitsi Meet",
-    "google_meet": "Google Meet",
+    "zoho_meeting": "Zoho Meeting",
     "zoom": "Zoom",
     "microsoft_teams": "Microsoft Teams",
     "whereby": "Whereby",
@@ -52,7 +52,7 @@ async def list_integrations(
                 "display_name": prov.replace("_", " ").title(),
                 "is_enabled": is_enabled,
                 "is_configured": is_configured,
-                "auth_type": "oauth" if prov in ("google_meet", "zoom", "microsoft_teams") else "api_key",
+                "auth_type": "oauth" if prov in ("zoho_meeting", "zoom", "microsoft_teams") else "api_key",
                 "updated_at": cfg.updated_at.isoformat() if cfg else None
             })
 

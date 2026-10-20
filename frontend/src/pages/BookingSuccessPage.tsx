@@ -45,12 +45,12 @@ export const BookingSuccessPage: React.FC = () => {
   const startDt = parseISO(booking.start_time);
   const endDt = parseISO(booking.end_time);
 
-  const isGoogleMeet =
-    booking.meeting_provider === 'google_meet' ||
-    (booking.meeting_join_url && booking.meeting_join_url.includes('meet.google.com'));
+  const isZohoMeeting =
+    booking.meeting_provider === 'zoho_meeting' ||
+    (booking.meeting_join_url && (booking.meeting_join_url.includes('meet.zoho') || booking.meeting_join_url.includes('meeting.zoho')));
 
-  const providerLabel = isGoogleMeet
-    ? 'Google Meet'
+  const providerLabel = isZohoMeeting
+    ? 'Zoho Meeting'
     : booking.meeting_join_url?.includes('zoom.us')
     ? 'Zoom'
     : booking.meeting_join_url?.includes('teams.microsoft.com')
@@ -63,10 +63,8 @@ export const BookingSuccessPage: React.FC = () => {
     ? 'In Person'
     : 'Video Call';
 
-  // Google Calendar "location" parameter is for venue or platform name,
-  // NOT raw meeting URLs (which Google Calendar flags as physical map locations).
-  const calendarLocation = isGoogleMeet
-    ? 'Google Meet'
+  const calendarLocation = isZohoMeeting
+    ? 'Zoho Meeting'
     : booking.meeting_provider === 'phone'
     ? 'Phone Call'
     : booking.meeting_provider === 'in_person'
@@ -142,7 +140,6 @@ export const BookingSuccessPage: React.FC = () => {
 
     if (booking.meeting_join_url && booking.meeting_join_url.startsWith('http')) {
       icsLines.push(`URL:${booking.meeting_join_url}`);
-      icsLines.push(`X-GOOGLE-CONFERENCE:${booking.meeting_join_url}`);
       icsLines.push(`CONFERENCE;VALUE=URI;FEATURE=VIDEO:${booking.meeting_join_url}`);
     }
 
@@ -158,21 +155,6 @@ export const BookingSuccessPage: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
-
-  // Pre-filled Google Calendar web URL template
-  // NOTE: We intentionally omit 'add' (guests) here because passing guests to Google Calendar's
-  // web URL template triggers Google's auto-conference feature, which generates a brand-new,
-  // conflicting Google Meet room that mismatches the booking's pre-assigned room.
-  const toGCalDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  const gcalParams: Record<string, string> = {
-    action: 'TEMPLATE',
-    text: eventTitle,
-    dates: `${toGCalDate(startDt)}/${toGCalDate(endDt)}`,
-    details: calendarDetails,
-    location: calendarLocation,
-  };
-
-  const googleCalendarUrl = `https://calendar.google.com/calendar/render?${new URLSearchParams(gcalParams).toString()}`;
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -298,13 +280,13 @@ export const BookingSuccessPage: React.FC = () => {
               <ExternalLink className="h-3 w-3 ml-1 opacity-80" />
             </a>
 
-            {/* Helpful note explaining Google Calendar behavior */}
-            {isGoogleMeet && (
+            {/* Helpful note explaining Zoho Meeting */}
+            {isZohoMeeting && (
               <div className="bg-white/80 border border-cyan-100 rounded-lg p-2.5 flex items-start space-x-2 text-[11px] text-slate-600">
                 <Info className="h-4 w-4 text-cyan-600 flex-shrink-0 mt-0.5" />
                 <div className="leading-snug">
-                  <span className="font-semibold text-slate-800">Calendar Tip: </span>
-                  When adding to Google Calendar, your Meet room is included in the event details and the location is set to <em>Google Meet</em>. You do <strong>not</strong> need to click &quot;Add Google Meet video conferencing&quot; inside Google Calendar.
+                  <span className="font-semibold text-slate-800">Meeting Details: </span>
+                  Your Zoho Meeting join link is generated and attached to this appointment.
                 </div>
               </div>
             )}
@@ -365,21 +347,11 @@ export const BookingSuccessPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="space-y-3 pt-1">
-          <a
-            href={googleCalendarUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex justify-center items-center py-3 px-4 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-sm font-bold shadow-md shadow-cyan-500/20 transition-all"
-          >
-            <Calendar className="mr-2 h-4 w-4" />
-            <span>Add to Google Calendar</span>
-          </a>
-
           <button
             onClick={downloadIcs}
-            className="w-full flex justify-center items-center py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition-colors"
+            className="w-full flex justify-center items-center py-3 px-4 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-700 hover:to-sky-700 text-white rounded-xl text-sm font-bold shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
           >
-            <Download className="mr-2 h-4 w-4 text-slate-500" />
+            <Calendar className="mr-2 h-4 w-4" />
             <span>Add to Calendar (.ics)</span>
           </button>
         </div>

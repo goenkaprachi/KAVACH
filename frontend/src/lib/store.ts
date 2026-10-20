@@ -15,9 +15,10 @@ export interface User {
   office_location?: string;
   employee_code?: string;
   bio?: string;
-  google_email?: string;
-  google_meet_url?: string;
-  has_google_token?: boolean;
+  zoho_email?: string;
+  zoho_meet_url?: string;
+  has_zoho_token?: boolean;
+  zoho_calendar_id?: string;
 }
 
 interface AuthState {

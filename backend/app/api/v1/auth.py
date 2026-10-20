@@ -31,9 +31,9 @@ from app.schemas.auth import (
     UserProfileResponse,
     UpdateProfileRequest,
     ChangePasswordRequest,
-    ConnectGoogleRequest,
-    GoogleAuthorizeUrlResponse,
-    GoogleCallbackRequest,
+    ConnectZohoRequest,
+    ZohoAuthorizeUrlResponse,
+    ZohoCallbackRequest,
 )
 from app.api.deps import get_current_user, require_employee, require_admin
 
@@ -169,7 +169,7 @@ async def accept_invite(
 
 def to_profile_response(user: User) -> UserProfileResponse:
     item = UserProfileResponse.model_validate(user)
-    item.google_connected = bool(user.google_email)
+    item.zoho_connected = bool(user.zoho_email)
     return item
 
 
@@ -202,8 +202,8 @@ async def update_me(
         current_user.timezone = req.timezone
     if req.avatar_url is not None:
         current_user.avatar_url = req.avatar_url
-    if req.google_meet_url is not None:
-        current_user.google_meet_url = req.google_meet_url.strip() if req.google_meet_url.strip() else None
+    if req.zoho_meet_url is not None:
+        current_user.zoho_meet_url = req.zoho_meet_url.strip() if req.zoho_meet_url.strip() else None
 
     await db.commit()
     await db.refresh(current_user)
@@ -226,15 +226,15 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-async def get_google_credentials(db: AsyncSession) -> Tuple[Optional[str], Optional[str]]:
+async def get_zoho_credentials(db: AsyncSession) -> Tuple[Optional[str], Optional[str]]:
     # 1. From settings / .env
-    client_id = settings.GOOGLE_CLIENT_ID
-    client_secret = settings.GOOGLE_CLIENT_SECRET
+    client_id = settings.ZOHO_CLIENT_ID
+    client_secret = settings.ZOHO_CLIENT_SECRET
     if client_id and client_secret:
         return client_id.strip(), client_secret.strip()
 
     # 2. From MeetingProviderConfig (configured via Admin Integrations)
-    stmt = select(MeetingProviderConfig).where(MeetingProviderConfig.provider == "google_meet")
+    stmt = select(MeetingProviderConfig).where(MeetingProviderConfig.provider == "zoho_meeting")
     res = await db.execute(stmt)
     cfg = res.scalar_one_or_none()
     if cfg and cfg.credentials_encrypted:
@@ -251,20 +251,22 @@ async def get_google_credentials(db: AsyncSession) -> Tuple[Optional[str], Optio
     return None, None
 
 
-@router.get("/google/authorize-url", response_model=GoogleAuthorizeUrlResponse)
-async def get_google_authorize_url(
+@router.get("/zoho/authorize-url", response_model=ZohoAuthorizeUrlResponse)
+async def get_zoho_authorize_url(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generates the Google OAuth 2.0 authorization URL for connecting a Google account."""
-    client_id, client_secret = await get_google_credentials(db)
-    redirect_uri = settings.GOOGLE_REDIRECT_URI
+    """Generates the Zoho OAuth 2.0 authorization URL for connecting a Zoho account."""
+    client_id, client_secret = await get_zoho_credentials(db)
+    redirect_uri = settings.ZOHO_REDIRECT_URI
+    accounts_url = settings.zoho_accounts_url
 
     if not client_id or not client_secret:
-        return GoogleAuthorizeUrlResponse(
+        return ZohoAuthorizeUrlResponse(
             configured=False,
             redirect_uri=redirect_uri,
-            message="Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env or Admin -> Integrations.",
+            accounts_url=accounts_url,
+            message="Zoho OAuth credentials not configured. Please set ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET in .env or Admin -> Integrations.",
         )
 
     # Encode user_id and nonce in a signed state token
@@ -275,37 +277,39 @@ async def get_google_authorize_url(
     }
     state = create_access_token(state_payload, expires_delta=timedelta(minutes=15))
 
+    scopes = "ZohoCalendar.event.ALL,ZohoCalendar.calendar.ALL,ZohoCalendar.freebusy.ALL,ZohoMeeting.meeting.ALL,AaaServer.profile.READ"
     params = {
+        "scope": scopes,
         "client_id": client_id,
-        "redirect_uri": redirect_uri,
         "response_type": "code",
-        "scope": "openid email profile https://www.googleapis.com/auth/calendar.events",
         "access_type": "offline",
         "prompt": "consent",
+        "redirect_uri": redirect_uri,
         "state": state,
     }
-    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
+    auth_url = f"{accounts_url}/oauth/v2/auth?{urllib.parse.urlencode(params)}"
 
-    return GoogleAuthorizeUrlResponse(
+    return ZohoAuthorizeUrlResponse(
         configured=True,
         auth_url=auth_url,
         client_id=client_id,
         redirect_uri=redirect_uri,
+        accounts_url=accounts_url,
     )
 
 
-@router.post("/google/callback", response_model=UserProfileResponse)
-async def google_callback(
-    req: GoogleCallbackRequest,
+@router.post("/zoho/callback", response_model=UserProfileResponse)
+async def zoho_callback(
+    req: ZohoCallbackRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Exchanges Google authorization code for tokens and links the Google account."""
-    client_id, client_secret = await get_google_credentials(db)
+    """Exchanges Zoho authorization code for tokens and links the Zoho account."""
+    client_id, client_secret = await get_zoho_credentials(db)
     if not client_id or not client_secret:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Google OAuth credentials are not configured in system settings.",
+            detail="Zoho OAuth credentials are not configured in system settings.",
         )
 
     # Validate state
@@ -317,9 +321,10 @@ async def google_callback(
                 detail="Invalid or expired OAuth state token.",
             )
 
-    redirect_uri = req.redirect_uri or settings.GOOGLE_REDIRECT_URI
+    redirect_uri = req.redirect_uri or settings.ZOHO_REDIRECT_URI
+    accounts_url = settings.zoho_accounts_url
+    token_url = f"{accounts_url}/oauth/v2/token"
 
-    token_url = "https://oauth2.googleapis.com/token"
     token_payload = {
         "client_id": client_id,
         "client_secret": client_secret,
@@ -339,7 +344,7 @@ async def google_callback(
                 pass
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Google token exchange failed: {err_text}",
+                detail=f"Zoho token exchange failed: {err_text}",
             )
         tokens = token_resp.json()
         access_token = tokens.get("access_token")
@@ -347,66 +352,74 @@ async def google_callback(
         expires_in = tokens.get("expires_in", 3600)
         scopes = tokens.get("scope", "")
 
-        # Fetch verified user profile
-        userinfo_resp = await client.get(
-            "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-        if userinfo_resp.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to retrieve Google profile identity.",
+        # Fetch verified user profile info
+        zoho_email = None
+        try:
+            userinfo_resp = await client.get(
+                f"{accounts_url}/oauth/user/info",
+                headers={"Authorization": f"Zoho-oauthtoken {access_token}"}
             )
-        g_profile = userinfo_resp.json()
-        google_email = g_profile.get("email")
+            if userinfo_resp.status_code == 200:
+                z_profile = userinfo_resp.json()
+                zoho_email = z_profile.get("Email") or z_profile.get("email")
+        except Exception as e:
+            pass
 
-    if not google_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Google profile did not contain an email address.",
-        )
+    if not zoho_email:
+        zoho_email = current_user.email
 
-    current_user.google_email = google_email.lower().strip()
-    current_user.google_connected_at = datetime.now(timezone.utc)
-    current_user.google_access_token_encrypted = encrypt_data(access_token) if access_token else None
+    current_user.zoho_email = zoho_email.lower().strip()
+    current_user.zoho_connected_at = datetime.now(timezone.utc)
+    current_user.zoho_access_token_encrypted = encrypt_data(access_token) if access_token else None
     if refresh_token:
-        current_user.google_refresh_token_encrypted = encrypt_data(refresh_token)
-    current_user.google_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-    current_user.google_scopes = scopes
+        current_user.zoho_refresh_token_encrypted = encrypt_data(refresh_token)
+    current_user.zoho_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    current_user.zoho_scopes = scopes
+
+    # Prime calendar ID
+    if access_token:
+        try:
+            from app.services.zoho_calendar_service import zoho_calendar_service
+            await zoho_calendar_service.get_or_fetch_calendar_id(current_user, access_token, db)
+        except Exception:
+            pass
 
     await db.commit()
     await db.refresh(current_user)
     return to_profile_response(current_user)
 
 
-@router.post("/me/google/connect", response_model=UserProfileResponse)
-async def connect_google(
-    req: ConnectGoogleRequest,
+@router.post("/me/zoho/connect", response_model=UserProfileResponse)
+async def connect_zoho(
+    req: ConnectZohoRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Direct connect fallback (for testing/development environments)."""
-    current_user.google_email = req.google_email.lower().strip()
-    current_user.google_connected_at = datetime.now(timezone.utc)
-    if req.google_meet_url is not None:
-        current_user.google_meet_url = req.google_meet_url.strip() if req.google_meet_url.strip() else None
+    current_user.zoho_email = req.zoho_email.lower().strip()
+    current_user.zoho_connected_at = datetime.now(timezone.utc)
+    if req.zoho_meet_url is not None:
+        current_user.zoho_meet_url = req.zoho_meet_url.strip() if req.zoho_meet_url.strip() else None
     await db.commit()
     await db.refresh(current_user)
     return to_profile_response(current_user)
 
 
-@router.delete("/me/google/disconnect", response_model=UserProfileResponse)
-async def disconnect_google(
+@router.delete("/me/zoho/disconnect", response_model=UserProfileResponse)
+async def disconnect_zoho(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    current_user.google_email = None
-    current_user.google_connected_at = None
-    current_user.google_access_token_encrypted = None
-    current_user.google_refresh_token_encrypted = None
-    current_user.google_token_expires_at = None
-    current_user.google_scopes = None
-    current_user.google_meet_url = None
+    current_user.zoho_email = None
+    current_user.zoho_connected_at = None
+    current_user.zoho_access_token_encrypted = None
+    current_user.zoho_refresh_token_encrypted = None
+    current_user.zoho_token_expires_at = None
+    current_user.zoho_scopes = None
+    current_user.zoho_calendar_id = None
+    current_user.zoho_meeting_zsoid = None
+    current_user.zoho_meeting_zuid = None
+    current_user.zoho_meet_url = None
     await db.commit()
     await db.refresh(current_user)
     return to_profile_response(current_user)

@@ -12,7 +12,7 @@ router = APIRouter(prefix="/integrations", tags=["Integrations"])
 
 PROVIDER_DISPLAY_NAMES = {
     "jitsi": "Video Call (Web Browser)",
-    "google_meet": "Google Meet",
+    "zoho_meeting": "Zoho Meeting",
     "zoom": "Zoom Video",
     "microsoft_teams": "Microsoft Teams",
     "whereby": "Whereby",
@@ -45,14 +45,14 @@ async def get_available_integrations(
                 "is_default": False,
             })
 
-    # If employee has connected their local Google account, enable Google Meet
-    has_google = any(p["provider"] == "google_meet" for p in output)
-    if not has_google and getattr(current_user, "google_email", None):
+    # If employee has connected their Zoho account, enable Zoho Meeting
+    has_zoho = any(p["provider"] == "zoho_meeting" for p in output)
+    if not has_zoho and getattr(current_user, "zoho_email", None):
         output.append({
-            "provider": "google_meet",
-            "display_name": f"Google Meet ({current_user.google_email})",
+            "provider": "zoho_meeting",
+            "display_name": f"Zoho Meeting ({current_user.zoho_email})",
             "is_default": False,
-            "connected_account": current_user.google_email,
+            "connected_account": current_user.zoho_email,
         })
 
     return output

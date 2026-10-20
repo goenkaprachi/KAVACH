@@ -19,7 +19,7 @@ Kavach Connect is a full-stack meeting scheduling platform purpose-built for **K
   - Re-evaluates live availability within atomic transactions to prevent race-condition overbooking.
 - **Meeting Provider Hub**:
   - **Jitsi Meet Default**: Zero credentials required, always-on fallback that generates secure, unguessable meeting rooms.
-  - Pluggable support for Google Meet, Zoom, Microsoft Teams, and Whereby.
+  - Pluggable support for Zoho Meeting, Zoom, Microsoft Teams, and Whereby.
   - Confirmed bookings never ship without a working join link.
 
 ---

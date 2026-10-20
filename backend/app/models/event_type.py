@@ -17,7 +17,7 @@ class EventType(Base):
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
-    location_type: Mapped[str] = mapped_column(String(64), default="jitsi", nullable=False)  # jitsi | google_meet | zoom | microsoft_teams | whereby | phone | in_person | custom | attendee_choice
+    location_type: Mapped[str] = mapped_column(String(64), default="jitsi", nullable=False)  # jitsi | zoho_meeting | zoom | microsoft_teams | whereby | phone | in_person | custom | attendee_choice
     location_detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     allowed_locations: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, default=list, nullable=True)
     booking_type: Mapped[str] = mapped_column(String(64), default="one_on_one", nullable=False)  # one_on_one | round_robin | collective | group

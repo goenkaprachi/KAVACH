@@ -63,50 +63,51 @@ async def test_custom_location_handling():
 
 
 @pytest.mark.asyncio
-async def test_google_meet_with_host_personal_url():
+async def test_zoho_meeting_with_host_personal_url():
     hub = MeetingProviderHub()
     booking_id = str(uuid.uuid4())
     start_time = datetime.now(timezone.utc)
 
     class MockUser:
-        google_meet_url = "https://meet.google.com/abc-defg-hij"
-        google_access_token_encrypted = None
+        zoho_meet_url = "https://meeting.zoho.in/meeting/join?key=123456789"
+        zoho_access_token_encrypted = None
+        zoho_refresh_token_encrypted = None
 
     details = await hub.create_for_booking(
         booking_id=booking_id,
         title="Client Demo",
         start_time=start_time,
         duration_minutes=30,
-        requested_provider="google_meet",
+        requested_provider="zoho_meeting",
         host_user=MockUser(),
     )
 
-    assert details.provider == "google_meet"
-    assert details.join_url == "https://meet.google.com/abc-defg-hij"
-    assert details.external_ref == "abc-defg-hij"
+    assert details.provider == "zoho_meeting"
+    assert details.join_url == "https://meeting.zoho.in/meeting/join?key=123456789"
 
 
 @pytest.mark.asyncio
-async def test_google_meet_without_config_falls_back_safely():
+async def test_zoho_meeting_without_config_falls_back_safely():
     hub = MeetingProviderHub()
     booking_id = str(uuid.uuid4())
     start_time = datetime.now(timezone.utc)
 
     class MockUserWithoutMeet:
-        google_meet_url = None
-        google_access_token_encrypted = None
+        zoho_meet_url = None
+        zoho_access_token_encrypted = None
+        zoho_refresh_token_encrypted = None
 
     details = await hub.create_for_booking(
         booking_id=booking_id,
         title="Client Demo",
         start_time=start_time,
         duration_minutes=30,
-        requested_provider="google_meet",
+        requested_provider="zoho_meeting",
         host_user=MockUserWithoutMeet(),
     )
 
-    # Must NOT generate fake broken random meet code like p1-p2-p3
-    # Instead safely falls back to working Jitsi room
+    # Must safely fall back to working Jitsi room so booking is never left without a link
     assert details.provider == "jitsi"
     assert "meet.jit.si" in details.join_url
-    assert "meet.google.com" not in details.join_url
+    assert "meeting.zoho" not in details.join_url
+

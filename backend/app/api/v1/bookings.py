@@ -378,9 +378,9 @@ async def create_booking(
 
     if requested_provider == "attendee_choice":
         if event_type.allowed_locations and len(event_type.allowed_locations) > 0:
-            requested_provider = event_type.allowed_locations[0].get("type", "google_meet")
+            requested_provider = event_type.allowed_locations[0].get("type", "zoho_meeting")
         else:
-            requested_provider = "google_meet"
+            requested_provider = "zoho_meeting"
 
     if event_type.allowed_locations:
         for loc in event_type.allowed_locations:
@@ -414,25 +414,32 @@ async def create_booking(
         attendee_email=req.invitee_email.lower().strip(),
     )
 
-    # Two-Way Google Calendar Sync: If non-Meet booking and host has Google Calendar connected
-    if not meeting_details.external_ref and (employee.google_access_token_encrypted or employee.google_refresh_token_encrypted):
+    # Two-Way Zoho Calendar Sync: Create calendar event in host's Zoho Calendar if connected
+    external_calendar_event_id = None
+    if getattr(employee, "zoho_access_token_encrypted", None) or getattr(employee, "zoho_refresh_token_encrypted", None):
         try:
-            from app.services.google_calendar_service import google_calendar_service
-            cal_desc = f"Scheduled via Kavach Connect.\nInvitee: {req.invitee_name} ({req.invitee_email})\nProvider: {requested_provider}"
-            g_cal_id = await google_calendar_service.create_calendar_event(
+            from app.services.zoho_calendar_service import zoho_calendar_service
+            cal_desc = (
+                f"Scheduled via Kavach Connect.\n"
+                f"Invitee: {req.invitee_name} ({req.invitee_email})\n"
+                f"Meeting Link: {meeting_details.join_url}\n"
+                f"Provider: {requested_provider}"
+            )
+            cal_loc = meeting_details.join_url or location_detail or requested_provider
+            z_cal_id = await zoho_calendar_service.create_calendar_event(
                 user=employee,
                 title="Meeting with Kavach",
                 start_time=slot_start_utc,
                 end_time=slot_end_utc,
                 description=cal_desc,
-                location=location_detail or requested_provider,
+                location=cal_loc,
                 attendee_email=req.invitee_email.lower().strip(),
                 db=db,
             )
-            if g_cal_id:
-                meeting_details.external_ref = g_cal_id
-        except Exception as g_sync_err:
-            logger.warning(f"Could not sync booking to Google Calendar: {g_sync_err}")
+            if z_cal_id:
+                external_calendar_event_id = z_cal_id
+        except Exception as z_sync_err:
+            logger.warning(f"Could not sync booking to Zoho Calendar: {z_sync_err}")
 
     # 4. Insert Booking & Invitee in atomic transaction
     new_booking = Booking(
@@ -447,6 +454,7 @@ async def create_booking(
         meeting_join_url=meeting_details.join_url,
         meeting_host_url=meeting_details.host_url,
         external_meeting_ref=meeting_details.external_ref,
+        external_calendar_event_id=external_calendar_event_id,
     )
     db.add(new_booking)
     await db.flush()
@@ -563,9 +571,9 @@ async def create_internal_meeting(
 
     # 2. Determine provider and generate meeting link
     provider = req.meeting_provider
-    if provider == "google_meet" and req.location_detail and "meet.google.com" in req.location_detail:
-        if not current_user.google_meet_url:
-            current_user.google_meet_url = req.location_detail.strip()
+    if provider == "zoho_meeting" and req.location_detail and ("meeting.zoho." in req.location_detail or "meet.zoho." in req.location_detail):
+        if not getattr(current_user, "zoho_meet_url", None):
+            current_user.zoho_meet_url = req.location_detail.strip()
 
     first_att_email = colleagues[0].email if colleagues else (req.guest_emails[0].lower().strip() if req.guest_emails else None)
     meeting_details = await meeting_hub.create_for_booking(
@@ -580,6 +588,32 @@ async def create_internal_meeting(
         attendee_email=first_att_email,
     )
 
+    # Zoho Calendar Sync for internal meeting if host has Zoho Calendar connected
+    external_calendar_event_id = None
+    if getattr(current_user, "zoho_access_token_encrypted", None) or getattr(current_user, "zoho_refresh_token_encrypted", None):
+        try:
+            from app.services.zoho_calendar_service import zoho_calendar_service
+            cal_desc = (
+                f"Internal meeting scheduled via Kavach Connect.\n"
+                f"Meeting Link: {meeting_details.join_url}\n"
+                f"Provider: {provider}"
+            )
+            cal_loc = meeting_details.join_url or req.location_detail or provider
+            z_cal_id = await zoho_calendar_service.create_calendar_event(
+                user=current_user,
+                title=req.title,
+                start_time=slot_start_utc,
+                end_time=slot_end_utc,
+                description=cal_desc,
+                location=cal_loc,
+                attendee_email=first_att_email,
+                db=db,
+            )
+            if z_cal_id:
+                external_calendar_event_id = z_cal_id
+        except Exception as z_sync_err:
+            logger.warning(f"Could not sync internal meeting to Zoho Calendar: {z_sync_err}")
+
     # 3. Create booking
     booking = Booking(
         title=req.title,
@@ -592,6 +626,7 @@ async def create_internal_meeting(
         meeting_join_url=meeting_details.join_url,
         meeting_host_url=meeting_details.host_url,
         external_meeting_ref=meeting_details.external_ref,
+        external_calendar_event_id=external_calendar_event_id,
     )
     db.add(booking)
     await db.flush()
@@ -775,17 +810,29 @@ async def cancel_booking(
     )
     db.add(cancel_log)
 
-    # Two-way sync: Remove from host's Google Calendar if present
-    if booking.external_meeting_ref and booking.employee:
+    # Two-way sync: Remove from host's Zoho Calendar if present
+    cal_event_id = getattr(booking, "external_calendar_event_id", None) or (booking.external_meeting_ref if booking.meeting_provider != "zoho_meeting" else None)
+    if cal_event_id and booking.employee:
         try:
-            from app.services.google_calendar_service import google_calendar_service
-            await google_calendar_service.delete_calendar_event(
+            from app.services.zoho_calendar_service import zoho_calendar_service
+            await zoho_calendar_service.delete_calendar_event(
                 user=booking.employee,
-                event_id=booking.external_meeting_ref,
+                event_id=cal_event_id,
                 db=db,
             )
-        except Exception as g_del_err:
-            logger.warning(f"Failed to delete Google Calendar event {booking.external_meeting_ref}: {g_del_err}")
+        except Exception as z_del_err:
+            logger.warning(f"Failed to delete Zoho Calendar event {cal_event_id}: {z_del_err}")
+
+    # Cancel Zoho Meeting session if present
+    if booking.meeting_provider == "zoho_meeting" and booking.external_meeting_ref and booking.employee:
+        try:
+            await meeting_hub.providers["zoho_meeting"].cancel_meeting(
+                external_ref=booking.external_meeting_ref,
+                host_user=booking.employee,
+                db=db,
+            )
+        except Exception as z_meet_err:
+            logger.warning(f"Failed to cancel Zoho Meeting {booking.external_meeting_ref}: {z_meet_err}")
 
     # Keep references before commit
     saved_invitees = list(booking.invitees)
@@ -958,31 +1005,85 @@ async def reschedule_booking(
             detail="The host is already booked for another meeting during this time.",
         )
 
-    # Clean up old external calendar event before creating a new one
-    if old_booking.external_meeting_ref and old_booking.employee:
-        try:
-            from app.services.google_calendar_service import google_calendar_service
-            await google_calendar_service.delete_calendar_event(
-                user=old_booking.employee,
-                event_id=old_booking.external_meeting_ref,
-                db=db,
-            )
-        except Exception as g_del_err:
-            logger.warning(f"Failed to delete old calendar event on reschedule {old_booking.external_meeting_ref}: {g_del_err}")
+    # Clean up or cancel old meeting and calendar event if needed
+    old_cal_id = getattr(old_booking, "external_calendar_event_id", None) or (old_booking.external_meeting_ref if old_booking.meeting_provider != "zoho_meeting" else None)
+    old_meet_ref = old_booking.external_meeting_ref if old_booking.meeting_provider == "zoho_meeting" else None
 
     att_email = old_booking.invitees[0].email if old_booking.invitees else None
     meeting_title = "Meeting with Kavach" if (old_booking.event_type_id is not None or event_type is not None) else (old_booking.title or "Rescheduled Meeting")
+    req_provider = event_type.location_type if event_type else old_booking.meeting_provider
+
     meeting_details = await meeting_hub.create_for_booking(
         booking_id=str(old_booking.id),
         title=meeting_title,
         start_time=new_slot_start_utc,
         duration_minutes=duration,
-        requested_provider=event_type.location_type if event_type else old_booking.meeting_provider,
+        requested_provider=req_provider,
         location_detail=event_type.location_detail if event_type else None,
         host_user=employee,
         db=db,
         attendee_email=att_email,
     )
+
+    # Cancel previous meeting session if new one created
+    if old_meet_ref and old_meet_ref != meeting_details.external_ref and old_booking.employee:
+        try:
+            await meeting_hub.providers["zoho_meeting"].cancel_meeting(
+                external_ref=old_meet_ref,
+                host_user=old_booking.employee,
+                db=db,
+            )
+        except Exception:
+            pass
+
+    # Two-way Zoho Calendar sync: update existing event or create new event
+    new_cal_id = old_cal_id
+    if getattr(employee, "zoho_access_token_encrypted", None) or getattr(employee, "zoho_refresh_token_encrypted", None):
+        try:
+            from app.services.zoho_calendar_service import zoho_calendar_service
+            cal_desc = (
+                f"Rescheduled via Kavach Connect.\n"
+                f"Invitee: {att_email}\n"
+                f"Meeting Link: {meeting_details.join_url}\n"
+                f"Provider: {meeting_details.provider}"
+            )
+            cal_loc = meeting_details.join_url or (event_type.location_detail if event_type else None) or meeting_details.provider
+
+            if old_cal_id and old_booking.employee:
+                updated = await zoho_calendar_service.update_calendar_event(
+                    user=old_booking.employee,
+                    event_id=old_cal_id,
+                    start_time=new_slot_start_utc,
+                    end_time=new_slot_end_utc,
+                    title=meeting_title,
+                    description=cal_desc,
+                    location=cal_loc,
+                    db=db,
+                )
+                if not updated:
+                    new_cal_id = await zoho_calendar_service.create_calendar_event(
+                        user=employee,
+                        title=meeting_title,
+                        start_time=new_slot_start_utc,
+                        end_time=new_slot_end_utc,
+                        description=cal_desc,
+                        location=cal_loc,
+                        attendee_email=att_email,
+                        db=db,
+                    )
+            else:
+                new_cal_id = await zoho_calendar_service.create_calendar_event(
+                    user=employee,
+                    title=meeting_title,
+                    start_time=new_slot_start_utc,
+                    end_time=new_slot_end_utc,
+                    description=cal_desc,
+                    location=cal_loc,
+                    attendee_email=att_email,
+                    db=db,
+                )
+        except Exception as z_sync_err:
+            logger.warning(f"Failed to sync Zoho Calendar event on reschedule: {z_sync_err}")
 
     # Maintain single record for the meeting: update old_booking in-place
     if old_booking.event_type_id is not None or event_type is not None:
@@ -995,6 +1096,7 @@ async def reschedule_booking(
     old_booking.meeting_join_url = meeting_details.join_url
     old_booking.meeting_host_url = meeting_details.host_url
     old_booking.external_meeting_ref = meeting_details.external_ref
+    old_booking.external_calendar_event_id = new_cal_id
     old_booking.cancellation_reason = None
     old_booking.cancelled_by = None
 

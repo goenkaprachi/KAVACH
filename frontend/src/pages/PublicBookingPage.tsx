@@ -118,8 +118,8 @@ export const PublicBookingPage: React.FC = () => {
         {
           type: eventType.location_type,
           label:
-            eventType.location_type === 'google_meet'
-              ? 'Google Meet'
+            eventType.location_type === 'zoho_meeting'
+              ? 'Zoho Meeting'
               : eventType.location_type === 'phone'
               ? 'Phone Call'
               : eventType.location_type === 'in_person'
@@ -130,7 +130,7 @@ export const PublicBookingPage: React.FC = () => {
       ];
     }
     return [
-      { type: 'google_meet', label: 'Google Meet' },
+      { type: 'zoho_meeting', label: 'Zoho Meeting' },
       { type: 'phone', label: 'Phone Call', detail: 'Host will call invitee' },
     ];
   }, [eventType]);
@@ -453,8 +453,8 @@ export const PublicBookingPage: React.FC = () => {
                     <span>
                       {eventType.location_type === 'jitsi'
                         ? 'Video Call'
-                        : eventType.location_type === 'google_meet'
-                        ? 'Google Meet'
+                        : eventType.location_type === 'zoho_meeting'
+                        ? 'Zoho Meeting'
                         : eventType.location_type === 'zoom'
                         ? 'Zoom Video'
                         : eventType.location_type === 'microsoft_teams'
@@ -650,7 +650,7 @@ export const PublicBookingPage: React.FC = () => {
                                 isSel ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-600'
                               }`}
                             >
-                              {loc.type === 'google_meet' ? (
+                              {loc.type === 'zoho_meeting' ? (
                                 <Video className="h-4 w-4" />
                               ) : loc.type === 'phone' ? (
                                 <Phone className="h-4 w-4" />
@@ -668,8 +668,8 @@ export const PublicBookingPage: React.FC = () => {
                                 )}
                               </div>
                               <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                                {loc.type === 'google_meet'
-                                  ? 'Video call via Google Meet'
+                                {loc.type === 'zoho_meeting'
+                                  ? 'Video call via Zoho Meeting'
                                   : loc.type === 'phone'
                                   ? (loc.detail || 'Host will call you at your number')
                                   : loc.type === 'in_person'

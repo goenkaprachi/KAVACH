@@ -262,7 +262,7 @@ class ReminderService:
                 "host_email": current_user.email,
                 "start_time": (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%A, %B %d, %Y at %I:%M %p UTC"),
                 "end_time": (datetime.now(timezone.utc) + timedelta(days=1, minutes=30)).strftime("%A, %B %d, %Y at %I:%M %p UTC"),
-                "meeting_url": "https://meet.google.com/test-sample-room",
+                "meeting_url": "https://meet.zoho.in/test-sample-room",
                 "time_until": time_until_str,
                 "cancellation_token": "demo-token-123",
             }

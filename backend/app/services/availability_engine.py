@@ -11,7 +11,7 @@ from app.models.user import User
 from app.models.event_type import EventType
 from app.models.availability import AvailabilitySchedule, AvailabilityRule, AvailabilityOverride
 from app.models.booking import Booking
-from app.services.google_calendar_service import google_calendar_service
+from app.services.zoho_calendar_service import zoho_calendar_service
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class AvailabilityEngine:
         - Max bookings per day
         - Symmetric buffer times
         - Existing Kavach bookings (with Group capacity logic)
-        - Connected Google Calendar FreeBusy busy blocks
+        - Connected Zoho Calendar FreeBusy busy blocks
         """
         try:
             invitee_tz = ZoneInfo(invitee_tz_str)
@@ -111,7 +111,7 @@ class AvailabilityEngine:
             if booking_count >= event_type.max_bookings_per_day:
                 return []
 
-        # 5. Fetch existing confirmed bookings and Google Calendar FreeBusy intervals
+        # 5. Fetch existing confirmed bookings and Zoho Calendar FreeBusy intervals
         buf_before = event_type.buffer_before_minutes or 0
         buf_after = event_type.buffer_after_minutes or 0
         total_buffer = buf_before + buf_after
@@ -122,17 +122,17 @@ class AvailabilityEngine:
             session, employee.id, expanded_start_utc, expanded_end_utc
         )
 
-        google_busy_intervals: List[Tuple[datetime, datetime]] = []
-        if employee.google_access_token_encrypted or employee.google_refresh_token_encrypted:
+        zoho_busy_intervals: List[Tuple[datetime, datetime]] = []
+        if getattr(employee, "zoho_access_token_encrypted", None) or getattr(employee, "zoho_refresh_token_encrypted", None):
             try:
-                google_busy_intervals = await google_calendar_service.get_freebusy_intervals(
+                zoho_busy_intervals = await zoho_calendar_service.get_freebusy_intervals(
                     user=employee,
                     time_min_utc=expanded_start_utc,
                     time_max_utc=expanded_end_utc,
                     db=session,
                 )
-            except Exception as g_err:
-                logger.warning(f"Failed to fetch Google Calendar FreeBusy for host {employee.id}: {g_err}")
+            except Exception as z_err:
+                logger.warning(f"Failed to fetch Zoho Calendar FreeBusy for host {employee.id}: {z_err}")
 
         # 6. Generate candidate slots across the employee's relevant days
         candidate_slots: List[Tuple[datetime, datetime]] = []
@@ -171,8 +171,8 @@ class AvailabilityEngine:
 
             is_blocked = False
 
-            # Check Google Calendar FreeBusy conflicts
-            for busy_start, busy_end in google_busy_intervals:
+            # Check Zoho Calendar FreeBusy conflicts
+            for busy_start, busy_end in zoho_busy_intervals:
                 b_blocked_start = busy_start - timedelta(minutes=buf_before + buf_after)
                 b_blocked_end = busy_end + timedelta(minutes=buf_after + buf_before)
                 if slot_start_utc < b_blocked_end and slot_end_utc > b_blocked_start:

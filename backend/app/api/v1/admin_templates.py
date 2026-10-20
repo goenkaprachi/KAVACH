@@ -132,7 +132,7 @@ async def send_test_template_email(
         "end_time": "Thursday, October 15, 2026 at 03:00 PM UTC",
         "old_start_time": "Wednesday, October 14, 2026 at 11:00 AM UTC",
         "new_start_time": "Thursday, October 15, 2026 at 02:30 PM UTC",
-        "meeting_url": "https://meet.google.com/abc-defg-hij",
+        "meeting_url": "https://meet.zoho.in/abc-defg-hij",
         "reason": "Schedule conflict with urgent client deployment",
         "cancellation_token": "demo-token-12345",
         "agenda_block": "<p><strong>Agenda:</strong> Review Q4 roadmap and client requirements.</p>",

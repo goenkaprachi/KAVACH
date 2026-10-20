@@ -42,10 +42,10 @@ class UserProfileResponse(BaseModel):
     office_location: Optional[str] = None
     employee_code: Optional[str] = None
     bio: Optional[str] = None
-    google_email: Optional[str] = None
-    google_connected: bool = False
-    google_connected_at: Optional[datetime] = None
-    google_meet_url: Optional[str] = None
+    zoho_email: Optional[str] = None
+    zoho_connected: bool = False
+    zoho_connected_at: Optional[datetime] = None
+    zoho_meet_url: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -62,7 +62,7 @@ class UpdateProfileRequest(BaseModel):
     bio: Optional[str] = None
     timezone: Optional[str] = None
     avatar_url: Optional[str] = None
-    google_meet_url: Optional[str] = None
+    zoho_meet_url: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -70,20 +70,21 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8)
 
 
-class ConnectGoogleRequest(BaseModel):
-    google_email: EmailStr
-    google_meet_url: Optional[str] = None
+class ConnectZohoRequest(BaseModel):
+    zoho_email: EmailStr
+    zoho_meet_url: Optional[str] = None
 
 
-class GoogleAuthorizeUrlResponse(BaseModel):
+class ZohoAuthorizeUrlResponse(BaseModel):
     configured: bool
     auth_url: Optional[str] = None
     client_id: Optional[str] = None
     redirect_uri: Optional[str] = None
+    accounts_url: Optional[str] = None
     message: Optional[str] = None
 
 
-class GoogleCallbackRequest(BaseModel):
+class ZohoCallbackRequest(BaseModel):
     code: str
     state: Optional[str] = None
     redirect_uri: Optional[str] = None

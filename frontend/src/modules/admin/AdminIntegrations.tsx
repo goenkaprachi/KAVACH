@@ -70,9 +70,9 @@ export const AdminIntegrations: React.FC = () => {
         return;
       }
       creds = { api_key: apiKey.trim() };
-    } else if (selectedProvider.provider === 'google_meet') {
+    } else if (selectedProvider.provider === 'zoho_meeting') {
       if (!clientId.trim() || !clientSecret.trim()) {
-        setErrorMessage('Google Meet Client ID and Client Secret are required.');
+        setErrorMessage('Zoho Meeting Client ID and Client Secret are required.');
         return;
       }
       creds = {
@@ -303,7 +303,7 @@ export const AdminIntegrations: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    {selectedProvider.provider !== 'google_meet' && (
+                    {selectedProvider.provider !== 'zoho_meeting' && (
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                           {selectedProvider.provider === 'microsoft_teams' ? 'Tenant ID' : 'Account ID'}

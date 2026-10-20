@@ -39,7 +39,7 @@ export interface AllowedLocation {
 }
 
 export const AVAILABLE_LOCATION_OPTIONS: { type: string; label: string; defaultDetail?: string }[] = [
-  { type: 'google_meet', label: 'Google Meet' },
+  { type: 'zoho_meeting', label: 'Zoho Meeting' },
   { type: 'phone', label: 'Phone Call', defaultDetail: 'Host will call invitee' },
   { type: 'in_person', label: 'In-Person Meeting', defaultDetail: '' },
   { type: 'jitsi', label: 'Kavach Secure Room' },
@@ -87,7 +87,7 @@ export const EventTypesList: React.FC = () => {
   const [locationType, setLocationType] = useState('jitsi');
   const [locationDetail, setLocationDetail] = useState('');
   const [allowedLocations, setAllowedLocations] = useState<AllowedLocation[]>([
-    { type: 'google_meet', label: 'Google Meet' },
+    { type: 'zoho_meeting', label: 'Zoho Meeting' },
     { type: 'phone', label: 'Phone Call', detail: 'Host will call invitee' },
     { type: 'in_person', label: 'In-Person Meeting', detail: '' },
   ]);
@@ -192,7 +192,7 @@ export const EventTypesList: React.FC = () => {
     setLocationType('jitsi');
     setLocationDetail('');
     setAllowedLocations([
-      { type: 'google_meet', label: 'Google Meet' },
+      { type: 'zoho_meeting', label: 'Zoho Meeting' },
       { type: 'phone', label: 'Phone Call', detail: 'Host will call invitee' },
       { type: 'in_person', label: 'In-Person Meeting', detail: '' },
     ]);
@@ -263,7 +263,7 @@ export const EventTypesList: React.FC = () => {
       et.allowed_locations && et.allowed_locations.length > 0
         ? et.allowed_locations
         : [
-            { type: 'google_meet', label: 'Google Meet' },
+            { type: 'zoho_meeting', label: 'Zoho Meeting' },
             { type: 'phone', label: 'Phone Call', detail: 'Host will call invitee' },
             { type: 'in_person', label: 'In-Person Meeting', detail: '' },
           ]
@@ -324,7 +324,7 @@ export const EventTypesList: React.FC = () => {
       case 'attendee_choice':
         return <Sparkles className="h-4 w-4 text-violet-600" />;
       case 'jitsi':
-      case 'google_meet':
+      case 'zoho_meeting':
       case 'zoom':
       case 'microsoft_teams':
       case 'whereby':
@@ -343,8 +343,8 @@ export const EventTypesList: React.FC = () => {
     switch (type) {
       case 'jitsi':
         return 'Video Call';
-      case 'google_meet':
-        return 'Google Meet';
+      case 'zoho_meeting':
+        return 'Zoho Meeting';
       case 'zoom':
         return 'Zoom Video';
       case 'microsoft_teams':
@@ -747,17 +747,17 @@ export const EventTypesList: React.FC = () => {
                         ) : (
                           <option value="jitsi">Video Call (Web Browser)</option>
                         )}
-                        {(user?.google_email || user?.google_meet_url) && !enabledIntegrations.some((item: any) => item.provider === 'google_meet') && (
-                          <option value="google_meet">Google Meet ({user.google_email || 'Personal Link'})</option>
+                        {(user?.zoho_email || user?.zoho_meet_url) && !enabledIntegrations.some((item: any) => item.provider === 'zoho_meeting') && (
+                          <option value="zoho_meeting">Zoho Meeting ({user.zoho_email || 'Personal Link'})</option>
                         )}
                         <option value="phone">Phone Call</option>
                         <option value="in_person">In-Person Meeting</option>
                         <option value="custom">Custom Web Link</option>
                       </optgroup>
                     </select>
-                    {!user?.google_email && !user?.google_meet_url && (
+                    {!user?.zoho_email && !user?.zoho_meet_url && (
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Tip: Set your Google Meet link or connect Google in your Profile to use Google Meet.
+                        Tip: Set your Zoho Meeting link or connect Zoho in your Profile to use Zoho Meeting.
                       </p>
                     )}
                   </div>
@@ -1210,11 +1210,11 @@ export const EventTypesList: React.FC = () => {
                         ) : (
                           <option value="jitsi">Video Call (Web Browser)</option>
                         )}
-                        {(user?.google_email || user?.google_meet_url) && !enabledIntegrations.some((item: any) => item.provider === 'google_meet') && (
-                          <option value="google_meet">Google Meet ({user.google_email || 'Personal Link'})</option>
+                        {(user?.zoho_email || user?.zoho_meet_url) && !enabledIntegrations.some((item: any) => item.provider === 'zoho_meeting') && (
+                          <option value="zoho_meeting">Zoho Meeting ({user.zoho_email || 'Personal Link'})</option>
                         )}
                         {!['phone', 'in_person', 'custom', 'attendee_choice'].includes(editLocationType) &&
-                          editLocationType !== 'google_meet' &&
+                          editLocationType !== 'zoho_meeting' &&
                           !enabledIntegrations.some((item: any) => item.provider === editLocationType) && (
                             <option value={editLocationType}>
                               {formatLocationName(editLocationType)} (Currently Disabled)

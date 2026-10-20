@@ -39,7 +39,7 @@ export const ScheduleInternalMeetingModal: React.FC<ScheduleInternalMeetingModal
   const [meetingDate, setMeetingDate] = useState(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'));
   const [meetingTime, setMeetingTime] = useState('10:00');
   const [durationMinutes, setDurationMinutes] = useState(30);
-  const [provider, setProvider] = useState<'jitsi' | 'google_meet' | 'in_person' | 'phone' | 'custom'>('jitsi');
+  const [provider, setProvider] = useState<'jitsi' | 'zoho_meeting' | 'in_person' | 'phone' | 'custom'>('jitsi');
   const [locationDetail, setLocationDetail] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedColleagueIds, setSelectedColleagueIds] = useState<string[]>([]);
@@ -57,7 +57,7 @@ export const ScheduleInternalMeetingModal: React.FC<ScheduleInternalMeetingModal
     enabled: isOpen,
   });
 
-  // Fetch current user profile to verify Google account connection
+  // Fetch current user profile to verify Zoho account connection
   const { data: profile } = useQuery({
     queryKey: ['user-me'],
     queryFn: async () => {
@@ -67,8 +67,8 @@ export const ScheduleInternalMeetingModal: React.FC<ScheduleInternalMeetingModal
     enabled: isOpen,
   });
 
-  const isGoogleConnected = Boolean(profile?.google_email || profile?.google_meet_url);
-  const myGoogleMeetUrl = profile?.google_meet_url;
+  const isZohoConnected = Boolean(profile?.zoho_email || profile?.zoho_meet_url);
+  const myZohoMeetUrl = profile?.zoho_meet_url;
 
   // Schedule mutation
   const scheduleMutation = useMutation({
@@ -342,24 +342,24 @@ export const ScheduleInternalMeetingModal: React.FC<ScheduleInternalMeetingModal
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setProvider('google_meet')}
+                onClick={() => setProvider('zoho_meeting')}
                 className={`p-3 rounded-xl border text-left transition-all relative ${
-                  provider === 'google_meet'
+                  provider === 'zoho_meeting'
                     ? 'border-indigo-500 bg-indigo-50/50 shadow-xs'
                     : 'border-slate-200 bg-white hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <Video className="h-4 w-4 text-indigo-600" />
-                  <span className="text-xs font-bold text-slate-900">Google Meet</span>
+                  <span className="text-xs font-bold text-slate-900">Zoho Meeting</span>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1">
-                  {myGoogleMeetUrl ? (
+                  {myZohoMeetUrl ? (
                     <span className="text-emerald-700 font-semibold">● Verified Link Ready</span>
-                  ) : isGoogleConnected ? (
-                    <span className="text-indigo-700 font-semibold">● Google Linked</span>
+                  ) : isZohoConnected ? (
+                    <span className="text-indigo-700 font-semibold">● Zoho Linked</span>
                   ) : (
-                    'Real Google Meet Room'
+                    'Real Zoho Meeting Room'
                   )}
                 </p>
               </button>
@@ -398,19 +398,19 @@ export const ScheduleInternalMeetingModal: React.FC<ScheduleInternalMeetingModal
             </div>
           </div>
 
-          {provider === 'google_meet' && (
+          {provider === 'zoho_meeting' && (
             <div>
-              {myGoogleMeetUrl ? (
+              {myZohoMeetUrl ? (
                 <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-start gap-2.5 text-xs text-indigo-950">
                   <Video className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-indigo-900">Google Meet Active</span>
+                      <span className="font-bold text-indigo-900">Zoho Meeting Active</span>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                         Ready
                       </span>
                     </div>
-                    <p className="text-[11px] text-indigo-700 font-mono truncate mt-0.5">{myGoogleMeetUrl}</p>
+                    <p className="text-[11px] text-indigo-700 font-mono truncate mt-0.5">{myZohoMeetUrl}</p>
                   </div>
                 </div>
               ) : (
@@ -418,15 +418,15 @@ export const ScheduleInternalMeetingModal: React.FC<ScheduleInternalMeetingModal
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <Video className="h-3.5 w-3.5 text-indigo-600" />
-                      <span>Your Google Meet Link</span>
+                      <span>Your Zoho Meeting Link</span>
                     </label>
                     <a
-                      href="https://meet.google.com"
+                      href="https://meeting.zoho.in"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
                     >
-                      <span>Get link at meet.google.com</span>
+                      <span>Get link at meeting.zoho.in</span>
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
@@ -434,11 +434,11 @@ export const ScheduleInternalMeetingModal: React.FC<ScheduleInternalMeetingModal
                     type="url"
                     value={locationDetail}
                     onChange={(e) => setLocationDetail(e.target.value)}
-                    placeholder="https://meet.google.com/xxx-yyyy-zzz"
+                    placeholder="https://meet.zoho.in/xxx-yyyy-zzz"
                     className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900 placeholder:text-slate-400"
                   />
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Paste your permanent Google Meet link (open meet.google.com &rarr; "New meeting" &rarr; "Create a meeting for later"). It will be automatically saved to your profile.
+                    Paste your permanent Zoho Meeting link or connect your Zoho account in Profile for automated meeting generation.
                   </p>
                 </div>
               )}

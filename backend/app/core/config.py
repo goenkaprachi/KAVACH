@@ -111,9 +111,36 @@ class Settings(BaseSettings):
 
     # External Provider Defaults
     JITSI_BASE_URL: str = "https://meet.jit.si"
-    GOOGLE_CLIENT_ID: str | None = None
-    GOOGLE_CLIENT_SECRET: str | None = None
-    GOOGLE_REDIRECT_URI: str = "http://localhost:5174/auth/google/callback"
+
+    # Zoho Integration & DC Configuration (defaults to .in for Kavach, fully configurable)
+    ZOHO_CLIENT_ID: str | None = None
+    ZOHO_CLIENT_SECRET: str | None = None
+    ZOHO_REDIRECT_URI: str = "http://localhost:5173/auth/zoho/callback"
+    ZOHO_DC: str = "in"
+    ZOHO_ACCOUNTS_URL: str | None = None
+    ZOHO_CALENDAR_API_BASE: str | None = None
+    ZOHO_MEETING_API_BASE: str | None = None
+
+    @property
+    def zoho_accounts_url(self) -> str:
+        if self.ZOHO_ACCOUNTS_URL and self.ZOHO_ACCOUNTS_URL.strip():
+            return self.ZOHO_ACCOUNTS_URL.strip().rstrip("/")
+        dc = (self.ZOHO_DC or "in").strip().lstrip(".")
+        return f"https://accounts.zoho.{dc}"
+
+    @property
+    def zoho_calendar_api_base(self) -> str:
+        if self.ZOHO_CALENDAR_API_BASE and self.ZOHO_CALENDAR_API_BASE.strip():
+            return self.ZOHO_CALENDAR_API_BASE.strip().rstrip("/")
+        dc = (self.ZOHO_DC or "in").strip().lstrip(".")
+        return f"https://calendar.zoho.{dc}"
+
+    @property
+    def zoho_meeting_api_base(self) -> str:
+        if self.ZOHO_MEETING_API_BASE and self.ZOHO_MEETING_API_BASE.strip():
+            return self.ZOHO_MEETING_API_BASE.strip().rstrip("/")
+        dc = (self.ZOHO_DC or "in").strip().lstrip(".")
+        return f"https://meeting.zoho.{dc}"
 
     # Email
     BREVO_API_KEY: str | None = None

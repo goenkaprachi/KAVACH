@@ -5,7 +5,7 @@ import { useAuthStore } from '../lib/store';
 import { Card } from '../components/Card';
 import { CheckCircle2, AlertCircle, RefreshCw, ArrowLeft, ShieldCheck } from 'lucide-react';
 
-export const GoogleOAuthCallbackPage: React.FC = () => {
+export const ZohoOAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
@@ -24,38 +24,38 @@ export const GoogleOAuthCallbackPage: React.FC = () => {
         setStatus('error');
         setErrorMessage(
           error === 'access_denied'
-            ? 'Access was cancelled or denied on the Google sign-in consent screen.'
-            : `Google OAuth error: ${error}`
+            ? 'Access was cancelled or denied on the Zoho sign-in consent screen.'
+            : `Zoho OAuth error: ${error}`
         );
         return;
       }
 
       if (!code) {
         setStatus('error');
-        setErrorMessage('No authorization code was returned by Google.');
+        setErrorMessage('No authorization code was returned by Zoho.');
         return;
       }
 
       try {
-        const res = await api.post('/auth/google/callback', {
+        const res = await api.post('/auth/zoho/callback', {
           code,
           state,
-          redirect_uri: window.location.origin + '/auth/google/callback',
+          redirect_uri: window.location.origin + '/auth/zoho/callback',
         });
 
         if (res.data) {
           setUser(res.data);
-          setConnectedEmail(res.data.google_email || 'Google Account');
+          setConnectedEmail(res.data.zoho_email || 'Zoho Account');
           setStatus('success');
           setTimeout(() => {
             navigate('/profile');
           }, 2500);
         }
       } catch (err: any) {
-        console.error('Google OAuth callback failed:', err);
+        console.error('Zoho OAuth callback failed:', err);
         setStatus('error');
         setErrorMessage(
-          err.response?.data?.detail || 'Failed to exchange authorization code with Google services.'
+          err.response?.data?.detail || 'Failed to exchange authorization code with Zoho services.'
         );
       }
     };
@@ -77,9 +77,9 @@ export const GoogleOAuthCallbackPage: React.FC = () => {
             <div className="flex justify-center">
               <RefreshCw className="h-8 w-8 text-cyan-600 animate-spin" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Connecting Google Account</h2>
+            <h2 className="text-xl font-bold text-slate-900">Connecting Zoho Account</h2>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Exchanging secure authorization tokens with Google services and enabling Google Meet conferencing...
+              Exchanging secure authorization tokens with Zoho services and enabling Zoho Calendar & Meeting conferencing...
             </p>
           </div>
         )}
@@ -93,11 +93,11 @@ export const GoogleOAuthCallbackPage: React.FC = () => {
             </div>
             <h2 className="text-xl font-bold text-slate-900">Successfully Connected!</h2>
             <p className="text-xs text-slate-600">
-              Your Google account <strong className="text-slate-900 font-semibold">{connectedEmail}</strong> is now
+              Your Zoho account <strong className="text-slate-900 font-semibold">{connectedEmail}</strong> is now
               linked to Kavach Connect.
             </p>
             <div className="p-3 bg-cyan-50/80 border border-cyan-200 rounded-xl text-xs text-cyan-800 font-medium">
-              Google Meet is now activated for your internal meetings & event types.
+              Zoho Calendar & Zoho Meeting are now activated for your internal meetings & event types.
             </div>
             <p className="text-[11px] text-slate-400">Redirecting to your profile...</p>
             <button

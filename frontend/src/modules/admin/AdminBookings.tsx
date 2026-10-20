@@ -133,7 +133,7 @@ export const AdminBookings: React.FC = () => {
             >
               <option value="">All Platforms</option>
               <option value="jitsi">Jitsi Meet</option>
-              <option value="google_meet">Google Meet</option>
+              <option value="zoho_meeting">Zoho Meeting</option>
               <option value="zoom">Zoom</option>
               <option value="phone">Phone</option>
               <option value="in_person">In Person</option>

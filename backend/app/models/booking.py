@@ -20,10 +20,11 @@ class Booking(Base):
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), default="confirmed", nullable=False)  # confirmed | cancelled | completed | no_show
-    meeting_provider: Mapped[str] = mapped_column(String(64), nullable=False)  # jitsi | google_meet | zoom | microsoft_teams | whereby | phone | in_person | custom
+    meeting_provider: Mapped[str] = mapped_column(String(64), nullable=False)  # jitsi | zoho_meeting | zoom | microsoft_teams | whereby | phone | in_person | custom
     meeting_join_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     meeting_host_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     external_meeting_ref: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    external_calendar_event_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     cancellation_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     cancelled_by: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # employee | invitee
     rescheduled_from_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("bookings.id"), nullable=True)

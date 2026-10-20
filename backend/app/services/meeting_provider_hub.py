@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import timedelta
-from typing import Optional, Protocol, Dict, Any
+from typing import Optional, Protocol, Dict, Any, Tuple
 from dataclasses import dataclass
 from app.core.config import settings
 
@@ -55,130 +55,55 @@ class JitsiMeetProvider:
         logger.info(f"Cancelled Jitsi meeting room {external_ref}")
 
 
-class GoogleMeetProvider:
-    name = "google_meet"
+class ZohoMeetingProvider:
+    name = "zoho_meeting"
 
     def is_configured(self) -> bool:
         return True
 
-    async def _create_calendar_event_meet(
+    async def _resolve_meeting_credentials(
         self,
-        booking_id: str,
-        title: str,
-        start_time: Any,
-        duration_minutes: int,
-        host_user: Any,
-        db: Optional[Any] = None,
-        attendee_email: Optional[str] = None,
-    ) -> Optional[MeetingDetails]:
-        """Creates a verified Google Meet conference via Google Calendar API if OAuth is connected."""
+        host_user: Optional[Any],
+        db: Optional[Any],
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Resolves (access_token, zsoid, zuid) for Zoho Meeting API."""
         import httpx
-        from datetime import datetime, timezone, timedelta
-        from app.core.security import decrypt_data, encrypt_data
-
-        if not getattr(host_user, "google_access_token_encrypted", None):
-            return None
+        from app.services.zoho_calendar_service import zoho_calendar_service
 
         access_token = None
-        try:
-            access_token = decrypt_data(host_user.google_access_token_encrypted)
-        except Exception as e:
-            logger.warning(f"Failed to decrypt google_access_token: {e}")
+        zsoid = None
+        zuid = None
 
-        # Check token expiry
-        expires_at = getattr(host_user, "google_token_expires_at", None)
-        is_expired = False
-        if expires_at:
-            if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
-            if datetime.now(timezone.utc) >= expires_at - timedelta(seconds=60):
-                is_expired = True
+        if host_user and (getattr(host_user, "zoho_access_token_encrypted", None) or getattr(host_user, "zoho_refresh_token_encrypted", None)):
+            access_token = await zoho_calendar_service.get_valid_access_token(host_user, db)
+            zsoid = getattr(host_user, "zoho_meeting_zsoid", None)
+            zuid = getattr(host_user, "zoho_meeting_zuid", None)
 
-        # Refresh if expired and refresh token available
-        refresh_token_enc = getattr(host_user, "google_refresh_token_encrypted", None)
-        if (is_expired or not access_token) and refresh_token_enc and db:
+        # If zsoid or zuid not yet cached, query user.json
+        if access_token and (not zsoid or not zuid):
             try:
-                from app.api.v1.auth import get_google_credentials
-                client_id, client_secret = await get_google_credentials(db)
-                refresh_token = decrypt_data(refresh_token_enc)
-                if client_id and client_secret and refresh_token:
-                    async with httpx.AsyncClient(timeout=10.0) as client:
-                        r = await client.post(
-                            "https://oauth2.googleapis.com/token",
-                            data={
-                                "client_id": client_id,
-                                "client_secret": client_secret,
-                                "refresh_token": refresh_token,
-                                "grant_type": "refresh_token",
-                            },
-                        )
-                        if r.status_code == 200:
-                            tok_data = r.json()
-                            access_token = tok_data.get("access_token")
-                            new_exp = tok_data.get("expires_in", 3600)
-                            host_user.google_access_token_encrypted = encrypt_data(access_token)
-                            host_user.google_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=new_exp)
-                            await db.commit()
-                            logger.info(f"Refreshed Google OAuth token for host {host_user.id}")
+                meeting_base = settings.zoho_meeting_api_base
+                user_url = f"{meeting_base}/api/v2/user.json"
+                headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.get(user_url, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    user_details = data.get("userDetails", {})
+                    zsoid = str(user_details.get("zsoid") or "")
+                    zuid = str(user_details.get("zuid") or "")
+                    if host_user and zsoid and zuid:
+                        host_user.zoho_meeting_zsoid = zsoid
+                        host_user.zoho_meeting_zuid = zuid
+                        if db:
+                            try:
+                                await db.commit()
+                            except Exception:
+                                pass
             except Exception as e:
-                logger.warning(f"Failed to refresh Google OAuth token: {e}")
+                logger.warning(f"Could not resolve Zoho Meeting user details: {e}")
 
-        if not access_token:
-            return None
-
-        end_time = start_time + timedelta(minutes=duration_minutes)
-        tz_name = getattr(host_user, "timezone", "UTC") or "UTC"
-        start_iso = start_time.isoformat() if hasattr(start_time, "isoformat") else str(start_time)
-        end_iso = end_time.isoformat() if hasattr(end_time, "isoformat") else str(end_time)
-
-        req_id = f"kavach-{str(booking_id).replace('-', '')[:20]}"
-        event_payload: dict[str, Any] = {
-            "summary": title,
-            "description": f"Scheduled via Kavach Connect.\nBooking Reference: {booking_id}",
-            "location": "Google Meet",
-            "start": {"dateTime": start_iso, "timeZone": tz_name},
-            "end": {"dateTime": end_iso, "timeZone": tz_name},
-            "conferenceData": {
-                "createRequest": {
-                    "requestId": req_id,
-                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
-                }
-            },
-        }
-        if attendee_email:
-            event_payload["attendees"] = [{"email": attendee_email}]
-
-        try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                res = await client.post(
-                    "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1",
-                    headers={
-                        "Authorization": f"Bearer {access_token}",
-                        "Content-Type": "application/json",
-                    },
-                    json=event_payload,
-                )
-            if res.status_code in (200, 201):
-                event_data = res.json()
-                join_url = event_data.get("hangoutLink")
-                if not join_url:
-                    for ep in event_data.get("conferenceData", {}).get("entryPoints", []):
-                        if ep.get("entryPointType") == "video":
-                            join_url = ep.get("uri")
-                            break
-                if join_url:
-                    logger.info(f"Successfully generated dynamic Google Meet link via Calendar API: {join_url}")
-                    return MeetingDetails(
-                        provider="google_meet",
-                        join_url=join_url,
-                        host_url=join_url,
-                        external_ref=event_data.get("id"),
-                    )
-            logger.warning(f"Google Calendar API returned status {res.status_code}: {res.text}")
-        except Exception as e:
-            logger.warning(f"Exception during Google Calendar API call: {e}")
-
-        return None
+        return access_token, zsoid, zuid
 
     async def create_meeting(
         self,
@@ -191,51 +116,88 @@ class GoogleMeetProvider:
         db: Optional[Any] = None,
         attendee_email: Optional[str] = None,
     ) -> MeetingDetails:
-        # 1. Explicit Meet link in location_detail
-        if location_detail and "meet.google.com/" in location_detail:
+        # 1. Explicit Zoho meeting link in location_detail
+        if location_detail and ("meeting.zoho." in location_detail or "meet.zoho." in location_detail):
             cleaned = location_detail.strip()
             if not cleaned.startswith("http"):
                 cleaned = f"https://{cleaned}"
-            code = cleaned.split("meet.google.com/")[-1].split("?")[0]
             return MeetingDetails(
-                provider="google_meet",
+                provider="zoho_meeting",
                 join_url=cleaned,
                 host_url=cleaned,
-                external_ref=code,
+                external_ref=cleaned.split("/")[-1].split("?")[0],
             )
 
-        # 2. Dynamic Google Meet room via Google Calendar API if OAuth connected
-        if host_user and getattr(host_user, "google_access_token_encrypted", None):
-            cal_details = await self._create_calendar_event_meet(
-                booking_id, title, start_time, duration_minutes, host_user, db, attendee_email=attendee_email
-            )
-            if cal_details:
-                return cal_details
-
-        # 3. Host's permanent Google Meet link (google_meet_url) - Zero Cloud Setup needed!
-        if host_user and getattr(host_user, "google_meet_url", None):
-            meet_url = host_user.google_meet_url.strip()
+        # 2. Host's permanent personal Zoho meeting link if configured
+        if host_user and getattr(host_user, "zoho_meet_url", None):
+            meet_url = host_user.zoho_meet_url.strip()
             if meet_url:
                 if not meet_url.startswith("http"):
                     meet_url = f"https://{meet_url}"
-                code = meet_url.split("meet.google.com/")[-1].split("?")[0] if "meet.google.com/" in meet_url else None
-                logger.info(f"Using host's permanent Google Meet URL: {meet_url}")
                 return MeetingDetails(
-                    provider="google_meet",
+                    provider="zoho_meeting",
                     join_url=meet_url,
                     host_url=meet_url,
-                    external_ref=code,
+                    external_ref=meet_url.split("/")[-1].split("?")[0],
                 )
 
+        # 3. Dynamic Zoho Meeting via Zoho Meeting v2 API
+        access_token, zsoid, zuid = await self._resolve_meeting_credentials(host_user, db)
+        if access_token and zsoid:
+            try:
+                import httpx
+                meeting_base = settings.zoho_meeting_api_base
+                create_url = f"{meeting_base}/api/v2/{zsoid}/sessions.json"
+                tz_name = getattr(host_user, "timezone", "UTC") or "UTC"
+
+                # Zoho startTime format: "Jun 19, 2026 07:00 PM"
+                start_formatted = start_time.strftime("%b %d, %Y %I:%M %p")
+                session_payload: Dict[str, Any] = {
+                    "session": {
+                        "topic": title,
+                        "agenda": f"Scheduled via Kavach Connect.\nBooking Reference: {booking_id}",
+                        "startTime": start_formatted,
+                        "duration": duration_minutes * 60 * 1000,
+                        "timezone": tz_name,
+                    }
+                }
+                if zuid and str(zuid).isdigit():
+                    session_payload["session"]["presenter"] = int(zuid)
+                if attendee_email:
+                    session_payload["session"]["participants"] = [{"email": attendee_email.strip()}]
+
+                headers = {
+                    "Authorization": f"Zoho-oauthtoken {access_token}",
+                    "Content-Type": "application/json;charset=UTF-8",
+                }
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    res = await client.post(create_url, headers=headers, json=session_payload)
+
+                if res.status_code in (200, 201):
+                    data = res.json()
+                    session_data = data.get("session") or data
+                    join_url = session_data.get("joinLink") or session_data.get("join_url") or session_data.get("meetingUrl")
+                    meeting_key = str(session_data.get("meetingKey") or session_data.get("meetingId") or session_data.get("sessionKey") or "")
+                    if join_url:
+                        logger.info(f"Successfully generated dynamic Zoho Meeting link: {join_url}")
+                        return MeetingDetails(
+                            provider="zoho_meeting",
+                            join_url=join_url,
+                            host_url=session_data.get("hostLink") or session_data.get("startUrl") or join_url,
+                            external_ref=meeting_key or None,
+                        )
+                logger.warning(f"Zoho Meeting API returned status {res.status_code}: {res.text}")
+            except Exception as e:
+                logger.warning(f"Exception during Zoho Meeting API call: {e}")
+
         # 4. Zero-Broken-Link Fallback:
-        # NEVER generate arbitrary random codes like p1-p2-p3 which Google rejects.
-        # Fall back to Jitsi Meet so attendee & host have a working video conference.
+        # Fall back to secure Jitsi Meet room so attendee & host have a working video conference.
         logger.info(
-            f"Google Meet requested for booking {booking_id}, but host has no permanent Meet link "
-            f"or active Google OAuth. Falling back to secure Jitsi Meet room to prevent broken link."
+            f"Zoho Meeting requested for booking {booking_id}, but host has no permanent Meet link "
+            f"or active Zoho OAuth. Falling back to secure Jitsi Meet room to prevent broken link."
         )
         clean_title = "".join(c for c in title if c.isalnum())[:16] or "Meeting"
-        room_name = f"kavach-meet-{clean_title.lower()}-{uuid.uuid4().hex[:10]}"
+        room_name = f"kavach-zoho-{clean_title.lower()}-{uuid.uuid4().hex[:10]}"
         join_url = f"{settings.JITSI_BASE_URL.rstrip('/')}/{room_name}"
         return MeetingDetails(
             provider="jitsi",
@@ -247,20 +209,21 @@ class GoogleMeetProvider:
     async def cancel_meeting(
         self, external_ref: str, host_user: Optional[Any] = None, db: Optional[Any] = None
     ) -> None:
-        if external_ref and host_user and getattr(host_user, "google_access_token_encrypted", None):
+        if not external_ref:
+            return
+        access_token, zsoid, _ = await self._resolve_meeting_credentials(host_user, db)
+        if access_token and zsoid:
             try:
                 import httpx
-                from app.core.security import decrypt_data
-                token = decrypt_data(host_user.google_access_token_encrypted)
-                if token:
-                    async with httpx.AsyncClient(timeout=10.0) as client:
-                        await client.delete(
-                            f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{external_ref}",
-                            headers={"Authorization": f"Bearer {token}"},
-                        )
-                        logger.info(f"Cancelled Google Calendar event {external_ref}")
+                meeting_base = settings.zoho_meeting_api_base
+                delete_url = f"{meeting_base}/api/v2/{zsoid}/sessions/{external_ref}.json"
+                headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    await client.delete(delete_url, headers=headers)
+                    logger.info(f"Cancelled Zoho Meeting {external_ref}")
             except Exception as exc:
-                logger.warning(f"Failed to cancel Google Calendar event {external_ref}: {exc}")
+                logger.warning(f"Failed to cancel Zoho Meeting {external_ref}: {exc}")
+
 
 
 class WherebyMeetingProvider:
@@ -379,7 +342,7 @@ class MeetingProviderHub:
     def __init__(self):
         self.providers: Dict[str, Any] = {
             "jitsi": JitsiMeetProvider(),
-            "google_meet": GoogleMeetProvider(),
+            "zoho_meeting": ZohoMeetingProvider(),
             "phone": CustomLocationProvider(),
             "in_person": CustomLocationProvider(),
             "custom": CustomLocationProvider(),
@@ -427,9 +390,9 @@ class MeetingProviderHub:
                     f"{type(exc).__name__}: {exc!r}. Falling back to Jitsi Meet safety net."
                 )
 
-        if requested_provider == "google_meet":
+        if requested_provider == "zoho_meeting":
             try:
-                return await self.providers["google_meet"].create_meeting(
+                return await self.providers["zoho_meeting"].create_meeting(
                     booking_id=booking_id,
                     title=title,
                     start_time=start_time,
@@ -441,7 +404,7 @@ class MeetingProviderHub:
                 )
             except Exception as exc:
                 logger.warning(
-                    f"Google Meet provider failed for booking {booking_id}: {exc}. "
+                    f"Zoho Meeting provider failed for booking {booking_id}: {exc}. "
                     f"Falling back to Jitsi Meet safety net."
                 )
                 return await self.providers["jitsi"].create_meeting(booking_id, title, start_time, duration_minutes)
